@@ -60,6 +60,22 @@
 
 namespace open_abb_driver
 {
+	/*! \brief Class to process the Feedback variant types */
+	class FeedbackVisitor
+		: public boost::static_visitor<>
+	{
+	public:
+		
+		FeedbackVisitor( tf::TransformBroadcaster& broadcaster );
+		
+		void operator()( const JointFeedback& fb );
+		void operator()( const CartesianFeedback& fb );
+		
+	private:
+		
+		tf::TransformBroadcaster& tfBroadcaster;
+		
+	};
 	
 	class RobotController
 	{
@@ -119,11 +135,7 @@ namespace open_abb_driver
 		typedef boost::unique_lock< Mutex > WriteLock;
 		typedef boost::shared_lock< Mutex > ReadLock;
 		
-		Mutex nonBlockMutex;
-		Mutex jointUpdateMutex;
-		Mutex cartUpdateMutex;
-		Mutex wobjUpdateMutex;
-		Mutex forceUpdateMutex;
+		Mutex mutex;
 		
 		ros::NodeHandle nodeHandle;
 		ros::NodeHandle privHandle;
@@ -141,10 +153,8 @@ namespace open_abb_driver
 		void FeedbackSpin();
 		
 		//handles to ROS stuff
-		tf::TransformBroadcaster handle_tf;
-		//Duplicates with standard messages
-		ros::Publisher handle_JointsLog;
-		ros::Publisher handle_CartesianLog;
+		tf::TransformBroadcaster tfBroadcaster;
+		FeedbackVisitor feedbackVisitor;
 		
 		ros::ServiceServer handle_Ping;
 		ros::ServiceServer handle_SetCartesian;
@@ -170,25 +180,6 @@ namespace open_abb_driver
 		
 		bool SetWorkObject( double x, double y, double z, double q0, double q1,
 							double q2, double q3 );
-		
-	};
-	
-	/*! \brief Class to process the Feedback variant types */
-	class FeedbackVisitor
-		: public boost::static_visitor<>
-	{
-	public:
-		
-		FeedbackVisitor( ros::Publisher& handle_Joints, 
-						 ros::Publisher& handle_Cartesian );
-		
-		void operator()( const JointFeedback& fb );
-		void operator()( const CartesianFeedback& fb );
-		
-	private:
-		
-		ros::Publisher& jointPub;
-		ros::Publisher& cartesianPub;
 		
 	};
 	

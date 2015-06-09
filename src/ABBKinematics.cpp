@@ -37,7 +37,8 @@ namespace open_abb_driver
 			joints[i] = angles[i];
 		}
 		// Have to account for joint 2 and 3 parallel link
-		joints[2] = joints[2] - joints[1];
+		// This is now accounted for in ABBNode
+// 		joints[2] = joints[2] - joints[1];
 		
 		ComputeFk( joints, trans, rot );
 		
@@ -81,7 +82,10 @@ namespace open_abb_driver
 		
 		solutions.clear();
 		bool success = ComputeIk( trans, rot, NULL, ikSols );
-		if( !success ) { return false; }
+		if( !success ) { 
+// 			std::cout << "IK failed!" << std::endl;
+			return false; 
+		}
 		
 		std::array<IkReal,6> solvalues;
 		JointAngles angles;
@@ -95,13 +99,15 @@ namespace open_abb_driver
 				angles[j] = solvalues[j];
 			}
 			// Have to account for joint 2 and 3 parallel link
-			angles[2] += angles[1];
+			// This is now accounted for in ABBNode
+// 			angles[2] += angles[1];
 			
 			bool inLimits = true;
 			for( unsigned int j = 0; j < 6; j++ )
 			{
 				if( angles[j] < jointLimits[j].first || angles[j] > jointLimits[j].second ) 
 				{ 
+// 					std::cout << "Joint " << j+1 << " at " << angles[j] << " failed limits." << std::endl;
 					inLimits = false;
 					break;
 				}

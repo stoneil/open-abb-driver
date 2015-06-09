@@ -4,13 +4,10 @@ namespace open_abb_driver
 {
 	
 	RobotController::RobotController( const ros::NodeHandle& nh, const ros::NodeHandle& ph ) 
-	: nodeHandle( nh ), privHandle( ph ) 
+	: nodeHandle( nh ), privHandle( ph ), feedbackVisitor( tfBroadcaster )
 	{
 		Initialize();
 		
-		handle_CartesianLog = privHandle.advertise<geometry_msgs::PoseStamped>("pose", 100);
-		handle_JointsLog = privHandle.advertise<sensor_msgs::JointState>("joint_state", 100);
-	
 		handle_Ping = privHandle.advertiseService("ping", &RobotController::PingCallback, this);
 		handle_SetCartesian = privHandle.advertiseService("set_cartesian", &RobotController::SetCartesianCallback, this);
 		handle_GetCartesian = privHandle.advertiseService("get_cartesian", &RobotController::GetCartesianCallback, this);
@@ -57,25 +54,37 @@ namespace open_abb_driver
 	
 	void RobotController::FeedbackSpin()
 	{
-		FeedbackVisitor visitor( handle_JointsLog, handle_CartesianLog );
 		while( ros::ok() )
 		{
 			feedbackInterface->Spin();
+			bool published = false;
 			while( feedbackInterface->HasFeedback() )
 			{
 				Feedback fb = feedbackInterface->GetFeedback();
-				boost::apply_visitor( visitor, fb );
+				boost::apply_visitor( feedbackVisitor, fb );
+				published = true;
+			}
+			
+			if( published )
+			{
+				ros::Time now = ros::Time::now();
+				
+				ReadLock lock( mutex );
+				PoseSE3::Vector toolVec = currToolTrans.ToVector();
+				tf::Vector3 toolTranslation( toolVec[0], toolVec[1], toolVec[2] );
+				tf::Quaternion toolRot( toolVec[4], toolVec[5], toolVec[6], toolVec[3] );
+				tf::Transform toolTrans( toolRot, toolTranslation );
+				tf::StampedTransform toolMsg( toolTrans, now, "abb_end_effector", "abb_tool" );
+				tfBroadcaster.sendTransform( toolMsg );
+				
+				PoseSE3::Vector workVec = currWorkTrans.ToVector();
+				tf::Vector3 workTranslation( workVec[0], workVec[1], workVec[2] );
+				tf::Quaternion workRot( workVec[4], workVec[5], workVec[6], workVec[3] );
+				tf::Transform workTrans( workRot, workTranslation );
+				tf::StampedTransform workMsg( workTrans, now, "abb_base", "abb_work_object" );
+				tfBroadcaster.sendTransform( workMsg );
 			}
 		}
-	}
-
-	bool RobotController::SetWorkObject( double x, double y, double z, double qw, 
-										 double qx, double qy, double qz )
-	{
-		currWorkTrans = PoseSE3( x, y, z, qw, qx, qy, qz );
-		if( !controlInterface->SetWorkObject( x, y, z, qw, qx, qy, qz ) ) { return false; }
-		
-		return true;
 	}
 	
 	bool RobotController::ConfigureRobot()
@@ -202,21 +211,20 @@ namespace open_abb_driver
 		PoseSE3 eff = currWorkTrans*pose*currToolTrans.Inverse();
 		
 		std::vector<JointAngles> ikSols;
-		if( !ikSolver.ComputeIK( eff, ikSols ) )
+		if( !ikSolver.ComputeIK( eff, ikSols ) || ikSols.size() == 0 )
 		{
-			ROS_ERROR( "Could not find inverse kinematic solution." );
+			ROS_ERROR_STREAM( "Could not find inverse kinematic solution for " << eff );
 			return false;
 		}
 		
-		
 		JointAngles current;
-		controlInterface->GetJoints( current );
+		GetJoints( current );
 		JointAngles best = ikSolver.GetBestSolution( current, ikSols );
 	
 // 		std::cout << "IK: " << best[0] << " " << best[1] << " " << best[2] << " " << best[3]
 // 			<< " " << best[4] << " " << best[5] << std::endl;
 		
-		return( controlInterface->SetJoints( best ) );
+		return( SetJoints( best ) );
 	}
 	
 	bool RobotController::GetCartesianCallback( GetCartesian::Request& req, GetCartesian::Response& res )
@@ -237,10 +245,11 @@ namespace open_abb_driver
 	
 	bool RobotController::GetCartesian( PoseSE3& pose )
 	{
-		double x, y, z, qw, qx, qy, qz;
+		JointAngles angles;
 		
-		if( !controlInterface->GetCartesian( x, y, z, qw, qx, qy, qz ) ) { return false; }
-		pose = PoseSE3( x, y, z, qw, qx, qz );
+		if( !GetJoints( angles ) ) { return false; }
+		PoseSE3 fwd = ABBKinematics::ComputeFK( angles );
+ 		pose = currWorkTrans.Inverse()*fwd*currToolTrans;
 		return true;
 	}
 	
@@ -254,7 +263,9 @@ namespace open_abb_driver
 	
 	bool RobotController::SetJoints( const JointAngles& angles )
 	{
-		return controlInterface->SetJoints( angles );
+		JointAngles a( angles );
+		a[2] += a[1];
+		return controlInterface->SetJoints( a );
 	}
 	
 	bool RobotController::GetJointsCallback( GetJoints::Request& req, GetJoints::Response& res )
@@ -270,7 +281,9 @@ namespace open_abb_driver
 	
 	bool RobotController::GetJoints( JointAngles& angles )
 	{
-		return controlInterface->GetJoints( angles );
+		if( !controlInterface->GetJoints( angles ) ) { return false; }
+		angles[2] -= angles[1];
+		return true;
 	}
 	
 	bool RobotController::SetToolCallback( SetTool::Request& req, SetTool::Response& res )
@@ -281,6 +294,7 @@ namespace open_abb_driver
 	
 	bool RobotController::SetTool( const PoseSE3& pose )
 	{
+		WriteLock lock( mutex );
 		currToolTrans = pose;
 		PoseSE3::Vector vec = currToolTrans.ToVector();
 		return controlInterface->SetTool( vec[0], vec[1], vec[2], vec[3], vec[4], vec[5], vec[6] );
@@ -294,6 +308,7 @@ namespace open_abb_driver
 	
 	bool RobotController::SetWorkObject( const PoseSE3& pose )
 	{
+		WriteLock lock( mutex );
 		currWorkTrans = pose;
 		PoseSE3::Vector vec = currWorkTrans.ToVector();
 		return controlInterface->SetWorkObject( vec[0], vec[1], vec[2], vec[3], vec[4], vec[5], vec[6] );
@@ -331,51 +346,39 @@ namespace open_abb_driver
 		return controlInterface->SetSoftness( softness );
 	}
 	
-	FeedbackVisitor::FeedbackVisitor( ros::Publisher& handle_Joints,
-									  ros::Publisher& handle_Cartesian )
-		: jointPub( handle_Joints ), cartesianPub( handle_Cartesian )
+	FeedbackVisitor::FeedbackVisitor( tf::TransformBroadcaster& broadcaster )
+		: tfBroadcaster( broadcaster )
 	{}
 	
 	void FeedbackVisitor::operator()( const JointFeedback& fb )
 	{
-		sensor_msgs::JointState jointMsg;
 		ros::Time now = ros::Time::now();
-		jointMsg.header.stamp = now; // TODO Use abb timestamp
-		for( unsigned int i = 0; i < 6; i++ )
-		{
-			jointMsg.name.push_back( std::to_string( i+1 ) );
-			jointMsg.position.push_back( fb.joints[i] );
-		}
-		jointPub.publish( jointMsg );
+		JointAngles angles = fb.joints;
+		angles[2] -= angles[1];
 		
-		JointAngles angles;
-		std::copy( fb.joints.begin(), fb.joints.end(), angles.begin() );
 		PoseSE3 fwd = ABBKinematics::ComputeFK( angles );
 		PoseSE3::Vector fwdv = fwd.ToVector(); //[x,y,z,qw,qx,qy,qz]
-		geometry_msgs::PoseStamped poseMsg;
-		poseMsg.header.stamp = now;
-		poseMsg.pose.position.x = fwdv[0];
-		poseMsg.pose.position.y = fwdv[1];
-		poseMsg.pose.position.z = fwdv[2];
-		poseMsg.pose.orientation.w = fwdv[3];
-		poseMsg.pose.orientation.x = fwdv[4];
-		poseMsg.pose.orientation.y = fwdv[5];
-		poseMsg.pose.orientation.z = fwdv[6];
-		cartesianPub.publish( poseMsg );
+		
+		tf::Vector3 translation( fwdv[0], fwdv[1], fwdv[2] );
+		tf::Quaternion quat( fwdv[4], fwdv[5], fwdv[6], fwdv[3] );
+		tf::Transform transform( quat, translation );
+		tf::StampedTransform msg( transform, now, "abb_base", "abb_end_effector" );
+		tfBroadcaster.sendTransform( msg );
 	}
 	
+	// DEPRECATED
 	void FeedbackVisitor::operator()( const CartesianFeedback& fb )
 	{
-		geometry_msgs::PoseStamped poseMsg;
-		poseMsg.header.stamp = ros::Time::now();
-		poseMsg.pose.position.x = fb.x;
-		poseMsg.pose.position.y = fb.y;
-		poseMsg.pose.position.z = fb.z;
-		poseMsg.pose.orientation.w = fb.qw;
-		poseMsg.pose.orientation.x = fb.qx;
-		poseMsg.pose.orientation.y = fb.qy;
-		poseMsg.pose.orientation.z = fb.qz;
-		cartesianPub.publish( poseMsg );
+// 		geometry_msgs::PoseStamped poseMsg;
+// 		poseMsg.header.stamp = ros::Time::now();
+// 		poseMsg.pose.position.x = fb.x;
+// 		poseMsg.pose.position.y = fb.y;
+// 		poseMsg.pose.position.z = fb.z;
+// 		poseMsg.pose.orientation.w = fb.qw;
+// 		poseMsg.pose.orientation.x = fb.qx;
+// 		poseMsg.pose.orientation.y = fb.qy;
+// 		poseMsg.pose.orientation.z = fb.qz;
+// 		cartesianPub.publish( poseMsg );
 	}
 	
 }
