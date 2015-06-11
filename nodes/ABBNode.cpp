@@ -4,7 +4,7 @@ namespace open_abb_driver
 {
 	
 	RobotController::RobotController( const ros::NodeHandle& nh, const ros::NodeHandle& ph ) 
-	: nodeHandle( nh ), privHandle( ph ), feedbackVisitor( tfBroadcaster )
+	: nodeHandle( nh ), privHandle( ph ), feedbackVisitor( tfBroadcaster, cartesianPub )
 	{
 		Initialize();
 		
@@ -19,6 +19,7 @@ namespace open_abb_driver
 		handle_SetZone = privHandle.advertiseService("set_zone", &RobotController::SetZoneCallback, this);
 		handle_SetSoftness = privHandle.advertiseService("set_softness", &RobotController::SetSoftnessCallback, this );
 		
+		cartesianPub = privHandle.advertise<geometry_msgs::PoseStamped>( "pose", 10, false );
 		feedbackWorker = boost::thread( boost::bind( &RobotController::FeedbackSpin, this ) );
 	}
 	
@@ -346,8 +347,8 @@ namespace open_abb_driver
 		return controlInterface->SetSoftness( softness );
 	}
 	
-	FeedbackVisitor::FeedbackVisitor( tf::TransformBroadcaster& broadcaster )
-		: tfBroadcaster( broadcaster )
+	FeedbackVisitor::FeedbackVisitor( tf::TransformBroadcaster& broadcaster, ros::Publisher& cb )
+		: tfBroadcaster( broadcaster ), cartesianPub( cb )
 	{}
 	
 	void FeedbackVisitor::operator()( const JointFeedback& fb )
@@ -364,6 +365,17 @@ namespace open_abb_driver
 		tf::Transform transform( quat, translation );
 		tf::StampedTransform msg( transform, now, "abb_base", "abb_end_effector" );
 		tfBroadcaster.sendTransform( msg );
+		
+		geometry_msgs::PoseStamped poseMsg;
+		poseMsg.header.stamp = now;
+		poseMsg.pose.position.x = fwdv[0];
+		poseMsg.pose.position.y = fwdv[1];
+		poseMsg.pose.position.z = fwdv[2];
+		poseMsg.pose.orientation.w = fwdv[3];
+		poseMsg.pose.orientation.x = fwdv[4];
+		poseMsg.pose.orientation.y = fwdv[5];
+		poseMsg.pose.orientation.z = fwdv[6];
+		cartesianPub.publish( poseMsg );
 	}
 	
 	// DEPRECATED

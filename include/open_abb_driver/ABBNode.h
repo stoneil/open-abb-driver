@@ -66,7 +66,7 @@ namespace open_abb_driver
 	{
 	public:
 		
-		FeedbackVisitor( tf::TransformBroadcaster& broadcaster );
+		FeedbackVisitor( tf::TransformBroadcaster& broadcaster, ros::Publisher& cp );
 		
 		void operator()( const JointFeedback& fb );
 		void operator()( const CartesianFeedback& fb );
@@ -74,6 +74,7 @@ namespace open_abb_driver
 	private:
 		
 		tf::TransformBroadcaster& tfBroadcaster;
+		ros::Publisher& cartesianPub;
 		
 	};
 	
@@ -139,6 +140,8 @@ namespace open_abb_driver
 		
 		ros::NodeHandle nodeHandle;
 		ros::NodeHandle privHandle;
+		
+		ros::Publisher cartesianPub;
 		
 		ABBControlInterface::Ptr controlInterface;
 		ABBFeedbackInterface::Ptr feedbackInterface;
