@@ -5,8 +5,8 @@ MODULE SERVER
 !////////////////
 
 !//Robot configuration
-PERS tooldata currentTool := [TRUE,[[-22.7,12.3,39.2],[1,0,0,0]],[0.001,[0,0,0.001],[1,0,0,0],0,0,0]];    
-PERS wobjdata currentWobj := [FALSE,TRUE,"",[[0,0,0],[1,0,0,0]],[[543.7,-681.7,171.6],[1,0,0,0]]];   
+PERS tooldata currentTool := [TRUE,[[163,-16.1,83.7],[0.00255,0.99983,-0.01232,-0.01355]],[0.001,[0,0,0.001],[1,0,0,0],0,0,0]];    
+PERS wobjdata currentWobj := [FALSE,TRUE,"",[[0,0,0],[1,0,0,0]],[[23.2,-901.8,101.8],[0.70694,0.00152,-0.70725,-0.00603]]];   
 PERS speeddata currentSpeed;
 PERS zonedata currentZone;
 
@@ -34,10 +34,11 @@ VAR jointtarget jointsTarget;
 VAR bool moveCompleted; !Set to true after finishing a Move instruction.
 
 !//Buffered move variables
-CONST num MAX_BUFFER := 512;
+CONST num MAX_BUFFER := 1024;
 VAR num BUFFER_POS := 0;
-VAR robtarget bufferTargets{MAX_BUFFER};
-VAR speeddata bufferSpeeds{MAX_BUFFER};
+VAR jointtarget bufferTargets{MAX_BUFFER};
+!VAR speeddata bufferSpeeds{MAX_BUFFER};
+VAR num bufferTimes{MAX_BUFFER};
 
 !//External axis position variables
 VAR extjoint externalAxis;
@@ -343,23 +344,22 @@ PROC main()
                     ok := SERVER_BAD_MSG;
                 ENDIF
                     
-            CASE 30: !Add Cartesian Coordinates to buffer
+            CASE 30: !Add Joint coordinates to buffer
                 IF nParams = 7 THEN
-                    cartesianTarget :=[[params{1},params{2},params{3}],
-                                        [params{4},params{5},params{6},params{7}],
-                                        [0,0,0,0],
-                                        externalAxis];
+                    jointsTarget :=[[params{1},params{2},params{3},params{4},params{5},params{6}],
+                                    externalAxis];
                     IF BUFFER_POS < MAX_BUFFER THEN
                         BUFFER_POS := BUFFER_POS + 1;
-                        bufferTargets{BUFFER_POS} := cartesianTarget;
-                        bufferSpeeds{BUFFER_POS} := currentSpeed;
+                        bufferTargets{BUFFER_POS} := jointsTarget;
+                        !bufferSpeeds{BUFFER_POS} := currentSpeed; !TODO
+                        bufferTimes{BUFFER_POS} := params{7};
                     ENDIF
                     ok := SERVER_OK;
                 ELSE
                     ok:=SERVER_BAD_MSG;
                 ENDIF
 
-            CASE 31: !Clear Cartesian Buffer
+            CASE 31: !Clear Joint waypoint buffer
                 IF nParams = 0 THEN
                     BUFFER_POS := 0;	
                     ok := SERVER_OK;
@@ -375,10 +375,11 @@ PROC main()
                     ok:=SERVER_BAD_MSG;
                 ENDIF
 
-            CASE 33: !Execute moves in cartesianBuffer as linear moves
+            CASE 33: !Execute moves in joint waypoint buffer as absolute joint moves
                 IF nParams = 0 THEN
                     FOR i FROM 1 TO (BUFFER_POS) DO 
-                        MoveL bufferTargets{i}, bufferSpeeds{i}, currentZone, currentTool \WObj:=currentWobj ;
+                        !MoveAbsJ bufferTargets{i}, bufferSpeeds{i}, currentZone, currentTool \WObj:=currentWobj ;
+                        MoveAbsJ bufferTargets{i}, currentSpeed\T:=bufferTimes{i}, currentZone, currentTool \WObj:=currentWobj ;
                     ENDFOR			
                     ok := SERVER_OK;
                 ELSE
