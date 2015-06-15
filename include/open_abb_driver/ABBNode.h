@@ -6,9 +6,13 @@
 //ROS specific
 #include <ros/ros.h>
 
+#include <open_abb_driver/AddWaypoint.h>
+#include <open_abb_driver/ClearWaypoints.h>
+#include <open_abb_driver/ExecuteWaypoints.h>
 #include <open_abb_driver/Ping.h>
 #include <open_abb_driver/SetCartesian.h>
 #include <open_abb_driver/GetCartesian.h>
+#include <open_abb_driver/GetNumWaypoints.h>
 #include <open_abb_driver/SetWorkObject.h>
 #include <open_abb_driver/SetZone.h>
 #include <open_abb_driver/SetSoftness.h>
@@ -85,6 +89,10 @@ namespace open_abb_driver
 		~RobotController();
 		
 		// Service Callbacks
+		bool AddWaypointCallback( AddWaypoint::Request& req, AddWaypoint::Response& res );
+		bool ClearWaypointsCallback( ClearWaypoints::Request& req, ClearWaypoints::Response& res );
+		bool ExecuteWaypointsCallback( ExecuteWaypoints::Request& req, ExecuteWaypoints::Response& res );
+		bool GetNumWaypointsCallback( GetNumWaypoints::Request& req, GetNumWaypoints::Response& res );
 		bool PingCallback( Ping::Request& req, Ping::Response& res );
 		bool SetCartesianCallback( SetCartesian::Request& req, SetCartesian::Response& res );
 		bool GetCartesianCallback( GetCartesian::Request& req, GetCartesian::Response& res );
@@ -96,6 +104,10 @@ namespace open_abb_driver
 		bool SetZoneCallback( SetZone::Request& req, SetZone::Response& res );
 		bool SetSoftnessCallback( SetSoftness::Request& req, SetSoftness::Response& res );
 		
+		bool AddWaypoint( const JointAngles& angles, double duration );
+		bool ClearWaypoints();
+		bool ExecuteWaypoints();
+		bool GetNumWaypoints( int& num );
 		bool Ping();
 		bool SetCartesian( const PoseSE3& pose );
 		bool GetCartesian( PoseSE3& pose );
@@ -159,6 +171,10 @@ namespace open_abb_driver
 		tf::TransformBroadcaster tfBroadcaster;
 		FeedbackVisitor feedbackVisitor;
 		
+		ros::ServiceServer handle_AddWaypoint;
+		ros::ServiceServer handle_ClearWaypoints;
+		ros::ServiceServer handle_ExecuteWaypoints;
+		ros::ServiceServer handle_GetNumWaypoints;
 		ros::ServiceServer handle_Ping;
 		ros::ServiceServer handle_SetCartesian;
 		ros::ServiceServer handle_GetCartesian;

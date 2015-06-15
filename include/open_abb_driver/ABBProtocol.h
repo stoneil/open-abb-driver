@@ -99,25 +99,26 @@ public:
 	
 	/*! \brief Formats message to add a cartesian coordinate waypoint to the buffer.
 	* The coordinates are always with respect to the currently defined work object and tool.
-	* @param x X-coordinate of the robot.
-	* @param y Y-coordinate of the robot.
-	* @param z Z-coordinate of the robot.
-	* @param q0 First component of the orientation quaternion.
-	* @param qx Second component of the orientation quaternion.
-	* @param qy Third component of the orientation quaternion.
-	* @param qz Fourth component of the orientation quaternion.
+	* @param joint1 - The first joint angle in degrees.
+	* @param joint2 - The second joint angle in degrees.
+	* @param joint3 - The third joint angle in degrees.
+	* @param joint4 - The fourth joint angle in degrees.
+	* @param joint5 - The fifth joint angle in degrees.
+	* @param joint6 - The sixth joint angle in degrees.
+	* @param duration - How long this joint move should take in seconds.
 	* @return String to be sent to ABB server. */
-	static std::string AddCartesianWaypoint( double x, double y, double z, double q0, 
-											 double qx, double qy, double qz );
+	static std::string AddWaypoint( double joint1, double joint2, double joint3,
+									double joint4, double joint5, double joint6,
+									double duration );
 	
-	/*! \brief Formats message to clear all cartesian waypoints in the buffer. */
-	static std::string ClearWaypointBuffer();
+	/*! \brief Formats message to clear all joint waypoints in the buffer. */
+	static std::string ClearWaypoints();
 	
-	/*! \brief Formats message to request cartesian waypoint buffer size. */
-	static std::string GetBufferSize();
+	/*! \brief Formats message to request joint waypoint buffer size. */
+	static std::string GetNumWaypoints();
 	
 	/*! \brief Formats message to begin executing the waypoint buffer. */
-	static std::string ExecuteBuffer();
+	static std::string ExecuteWaypoints();
 	
 	/*! \brief Formats message to set circular move center point. */
 	static std::string SetCircularCenter( double x, double y, double z, double qw,

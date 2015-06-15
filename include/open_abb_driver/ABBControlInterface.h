@@ -72,6 +72,19 @@ namespace open_abb_driver
 		/*! \brief Resets over-limit axes back to 0 and retries Cartesian command. */
 		bool UnwindAxes( const std::array<double,6>& thresholds );
 		
+		// TODO Specify speed
+		/*! \brief Adds a joint position to the onboard buffer. */
+		bool AddWaypoint( const std::array<double,6>& position, double duration );
+		
+		/*! \brief Clears the onboard buffer of joint positions. */
+		bool ClearWaypoints();
+		
+		/*! \brief Gets the number of waypoints in the onboard buffer. */
+		bool GetNumWaypoints( int& s );
+		
+		/*! \brief Begin execution of the buffer waypoints. Note that this does not clear the buffer. */
+		bool ExecuteWaypoints();
+		
 	private:
 		
 		enum ServerAck

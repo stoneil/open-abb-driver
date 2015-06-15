@@ -8,6 +8,10 @@ namespace open_abb_driver
 	{
 		Initialize();
 		
+		handle_AddWaypoint = privHandle.advertiseService("add_waypoint", &RobotController::AddWaypointCallback, this);
+		handle_ClearWaypoints = privHandle.advertiseService("clear_waypoints", &RobotController::ClearWaypointsCallback, this);
+		handle_ExecuteWaypoints = privHandle.advertiseService("execute_waypoints", &RobotController::ExecuteWaypointsCallback, this);
+		handle_GetNumWaypoints = privHandle.advertiseService("get_num_waypoints", &RobotController::GetNumWaypointsCallback, this);
 		handle_Ping = privHandle.advertiseService("ping", &RobotController::PingCallback, this);
 		handle_SetCartesian = privHandle.advertiseService("set_cartesian", &RobotController::SetCartesianCallback, this);
 		handle_GetCartesian = privHandle.advertiseService("get_cartesian", &RobotController::GetCartesianCallback, this);
@@ -188,6 +192,50 @@ namespace open_abb_driver
 		ikSolver.SetJointLimits( 5, std::pair<double,double>( j6Lim[0], j6Lim[1] ) );
 		
 		return true;
+	}
+	
+	bool RobotController::AddWaypointCallback( AddWaypoint::Request& req, AddWaypoint::Response& res )
+	{
+		std::array<double,6> position;
+		std::copy( req.position.begin(), req.position.end(), position.begin() );
+		return AddWaypoint( position, req.duration );
+	}
+	
+	bool RobotController::AddWaypoint( const JointAngles& angles, double duration )
+	{
+		JointAngles a( angles );
+		a[2] += a[1];
+		return controlInterface->AddWaypoint( a, duration );
+	}
+	
+	bool RobotController::ClearWaypointsCallback( ClearWaypoints::Request& req, ClearWaypoints::Response& res )
+	{
+		return ClearWaypoints();
+	}
+	
+	bool RobotController::ClearWaypoints()
+	{
+		return controlInterface->ClearWaypoints();
+	}
+	
+	bool RobotController::ExecuteWaypointsCallback( ExecuteWaypoints::Request& req, ExecuteWaypoints::Response& res )
+	{
+		return ExecuteWaypoints();
+	}
+	
+	bool RobotController::ExecuteWaypoints()
+	{
+		return controlInterface->ExecuteWaypoints();
+	}
+	
+	bool RobotController::GetNumWaypointsCallback( GetNumWaypoints::Request& req, GetNumWaypoints::Response& res )
+	{
+		return GetNumWaypoints( res.numWaypoints );
+	}
+	
+	bool RobotController::GetNumWaypoints( int& num )
+	{
+		return controlInterface->GetNumWaypoints( num );
 	}
 	
 	bool RobotController::PingCallback( Ping::Request& req, Ping::Response& res )
@@ -395,12 +443,14 @@ namespace open_abb_driver
 	
 }
 
+using namespace open_abb_driver;
+
 int main(int argc, char** argv)
 {
 	ros::init(argc, argv, "controller");
 	ros::NodeHandle nh;
 	ros::NodeHandle ph( "~" );
-	open_abb_driver::RobotController ABBrobot( nh, ph );
+	RobotController ABBrobot( nh, ph );
 	
 	ros::MultiThreadedSpinner spinner(2);
 	spinner.spin();

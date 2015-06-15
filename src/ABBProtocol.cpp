@@ -186,44 +186,45 @@ namespace open_abb_driver
 		return (msg);
 	}
 	
-	string ABBProtocol::AddCartesianWaypoint( double x, double y, double z, double qw, double qx, 
-											  double qy, double qz )
+	std::string ABBProtocol::AddWaypoint( double joint1, double joint2, double joint3,
+										  double joint4, double joint5, double joint6,
+										  double duration )
 	{
 		char buff[20];
 		string msg("30 ");//instruction code;
 		
-		sprintf(buff,"%+08.1lf ",x);
+		sprintf(buff,"%+08.2lf ",joint1);
 		msg += buff;
-		sprintf(buff,"%+08.1lf ",y);
+		sprintf(buff,"%+08.2lf ",joint2);
 		msg += buff;
-		sprintf(buff,"%+08.1lf ",z);
+		sprintf(buff,"%+08.2lf ",joint3);
 		msg += buff;
-		sprintf(buff,"%+08.5lf ",qw);
+		sprintf(buff,"%+08.2lf ",joint4);
 		msg += buff;
-		sprintf(buff,"%+08.5lf ",qx);
+		sprintf(buff,"%+08.2lf ",joint5);
 		msg += buff;
-		sprintf(buff,"%+08.5lf ",qy);
+		sprintf(buff,"%+08.2lf ",joint6);
 		msg += buff;
-		sprintf(buff,"%+08.5lf ",qz);
+		sprintf(buff,"%+08.2lf ",duration);
 		msg += buff;
 		msg += "#";
 		
 		return (msg);
 	}
 	
-	string ABBProtocol::ClearWaypointBuffer()
+	string ABBProtocol::ClearWaypoints()
 	{
 		string msg("31 #"); // instruction code		
 		return msg;
 	}
 	
-	string ABBProtocol::GetBufferSize()
+	string ABBProtocol::GetNumWaypoints()
 	{
 		string msg( "32 #" );
 		return msg;
 	}
 	
-	string ABBProtocol::ExecuteBuffer()
+	string ABBProtocol::ExecuteWaypoints()
 	{
 		string msg( "33 #" );
 		return msg;

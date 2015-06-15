@@ -12,7 +12,11 @@ find_package( catkin 	REQUIRED
 find_package(Eigen3 REQUIRED)
 
 add_service_files(
-	FILES 			GetCartesian.srv
+	FILES 			AddWaypoint.srv
+					ClearWaypoints.srv
+					ExecuteWaypoints.srv
+					GetCartesian.srv
+					GetNumWaypoints.srv
 					GetJoints.srv
 					Ping.srv
 					SetCartesian.srv
@@ -51,7 +55,8 @@ add_library( abb_comm
 add_library( abb2400_ikfast
 			 src/IKFastSolver.cpp
 			 src/ABBKinematics.cpp
-			 src/PoseSE3.cpp )
+			 src/PoseSE3.cpp
+			 src/TrajectoryGenerator.cpp )
 			 
 add_dependencies( abb_comm ${open_abb_driver_EXPORTED_TARGETS} )
 target_link_libraries( abb_comm
@@ -61,6 +66,10 @@ target_link_libraries( abb_comm
 add_executable( abb_node nodes/ABBNode.cpp )
 add_dependencies( abb_node ${PROJECT_NAME}_gencfg )
 target_link_libraries( abb_node abb_comm )
+
+add_executable( traj_test nodes/TrajTest.cpp )
+add_dependencies( traj_test ${PROJECT_NAME}_gencfg )
+target_link_libraries( traj_test abb_comm )
 
 install( TARGETS abb_comm abb_node
 	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

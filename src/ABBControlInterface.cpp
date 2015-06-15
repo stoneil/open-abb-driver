@@ -299,6 +299,45 @@ namespace open_abb_driver
 		return true;
 	}
 	
+	bool ABBControlInterface::AddWaypoint( const std::array<double,6>& position, double duration )
+	{
+		std::string message = ABBProtocol::AddWaypoint( position[0]*RAD_2_DEG, 
+														position[1]*RAD_2_DEG,
+														position[2]*RAD_2_DEG,
+														position[3]*RAD_2_DEG,
+														position[4]*RAD_2_DEG,
+														position[5]*RAD_2_DEG,
+														duration );
+		char reply[max_buffer_len];
+		return SendAndReceive(message, reply);
+	}
+	
+	bool ABBControlInterface::ClearWaypoints()
+	{
+		std::string message = ABBProtocol::ClearWaypoints();
+		char reply[max_buffer_len];
+		return SendAndReceive(message, reply);
+	}
+	
+	bool ABBControlInterface::GetNumWaypoints( int& s )
+	{
+		std::string message = ABBProtocol::GetNumWaypoints();
+		char reply[max_buffer_len];
+		if( !SendAndReceive(message, reply) ) { return false; }
+		
+		int idCode, ok, num;
+		sscanf( reply, "%d %d %d", &idCode, &ok, &num );
+		s = num;
+		return true;
+	}
+	
+	bool ABBControlInterface::ExecuteWaypoints()
+	{
+		std::string message = ABBProtocol::ExecuteWaypoints();
+		char reply[max_buffer_len];
+		return SendAndReceive(message, reply);
+	}
+	
 	double ABBControlInterface::NormalizeQuaternion( double& qw, double& qx, double& qy, double& qz )
 	{
 		double norm = std::sqrt( qw*qw + qx*qx + qy*qy + qz*qz );

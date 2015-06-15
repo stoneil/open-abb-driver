@@ -2,9 +2,23 @@
 
 namespace open_abb_driver
 {
+	
+	std::ostream& operator<<( std::ostream& os, const JointAngles& a )
+	{
+		os << "(" << a[0] << ", " << a[1] << ", " << a[2] << ", " << a[3] 
+			<< ", " << a[4] << ", " << a[5] << ")";
+		return os;
+	}
+
 	ABBKinematics::ABBKinematics() 
 	{
 		weights.fill( 1.0 );
+		jointLimits[0] = std::pair<double,double>( -3.146, 3.146 );
+		jointLimits[1] = std::pair<double,double>( -1.7453, 1.9199 );
+		jointLimits[2] = std::pair<double,double>( -1.0472, 1.1345 );
+		jointLimits[3] = std::pair<double,double>( -3.49, 3.49 );
+		jointLimits[4] = std::pair<double,double>( -2.0944, 2.0944 );
+		jointLimits[5] = std::pair<double,double>( -6.9813, 6.9813 );
 	}
 		
 	void ABBKinematics::SetJointLimits( unsigned int index, std::pair<double,double> limits )

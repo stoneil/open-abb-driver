@@ -10,7 +10,8 @@
 namespace open_abb_driver
 {
 	typedef std::array<double,6> JointAngles;
-
+	std::ostream& operator<<( std::ostream& os, const JointAngles& );
+	
 	class ABBKinematics
 	{
 	public:
@@ -34,12 +35,13 @@ namespace open_abb_driver
 		JointAngles GetBestSolution( const JointAngles& currentAngles, 
 									 const std::vector<JointAngles>& solutions );
 	
+		double CalculateScore( const JointAngles& a, const JointAngles& b );
+
 	private:
 		
 		JointWeights weights;
 		std::array< std::pair<double,double>, 6 > jointLimits;
 		
-		double CalculateScore( const JointAngles& a, const JointAngles& b );
 		
 	};
 	
