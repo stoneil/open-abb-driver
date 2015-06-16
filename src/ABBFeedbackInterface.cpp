@@ -49,10 +49,10 @@ namespace open_abb_driver
 			throw std::runtime_error( "Could not read the socket flags." );
 		}
 		
-		if(fcntl(loggerSocket, F_SETFL, flags | O_NONBLOCK) == -1)
-		{
-			throw std::runtime_error( "Could not set the socket to non-blocking mode." );
-		}
+// 		if(fcntl(loggerSocket, F_SETFL, flags | O_NONBLOCK) == -1)
+// 		{
+// 			throw std::runtime_error( "Could not set the socket to non-blocking mode." );
+// 		}
 		
 	}
 	

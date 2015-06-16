@@ -67,7 +67,6 @@ namespace open_abb_driver
 			if( initial )
 			{
 				current.push( node );
-				visited.insert( node.get() );
 				node->SetCost( 0 );
 			}
 			else
@@ -93,8 +92,10 @@ namespace open_abb_driver
 					return Backtrace( currentNode );
 				}
 				
+				if( visited.count( currentNode.get() ) > 0 ) { continue; }
+				
 				std::vector<DijkstraEdge> edges = currentNode->GetEdges();
-				std::cout << "Node " << currentNode.get() << " has " << edges.size() << " edges." << std::endl;
+// 				std::cout << "Node " << currentNode.get() << " has " << edges.size() << " edges." << std::endl;
 				BOOST_FOREACH( const DijkstraEdge& edge, edges )
 				{
 					if( visited.count( edge.child.get() ) > 0 ) { continue; }
@@ -110,7 +111,7 @@ namespace open_abb_driver
 				visited.insert( currentNode.get() );
 			}
 			
-			std::cout << "Dijkstra failed!" << std::endl;
+// 			std::cout << "Dijkstra failed!" << std::endl;
 			std::vector<DijkstraNode::Ptr> ret;
 			return ret;
 		}

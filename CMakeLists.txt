@@ -67,9 +67,9 @@ add_executable( abb_node nodes/ABBNode.cpp )
 add_dependencies( abb_node ${PROJECT_NAME}_gencfg )
 target_link_libraries( abb_node abb_comm )
 
-add_executable( traj_test nodes/TrajTest.cpp )
-add_dependencies( traj_test ${PROJECT_NAME}_gencfg )
-target_link_libraries( traj_test abb_comm )
+add_executable( execute_csv apps/ExecuteCSV.cpp )
+add_dependencies( execute_csv ${PROJECT_NAME}_gencfg )
+target_link_libraries( execute_csv abb_comm )
 
 install( TARGETS abb_comm abb_node
 	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

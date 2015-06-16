@@ -1,0 +1,18 @@
+<launch>
+  <node pkg="open_abb_driver" type="execute_csv" name="execute_csv" output="screen">
+    <rosparam>
+      offset_x: 0.8
+      offset_y: -0.2
+      offset_z: 0.6
+      offset_qw: 1.0
+      offset_qx: 0.0
+      offset_qy: 0.0
+      offset_qz: 0.0
+      
+      csv_path: /home/humphreh/Downloads/2547-4-intp.csv
+      subsample: 30
+      
+      arm_name: abb_arm
+    </rosparam>
+  </node>
+</launch>

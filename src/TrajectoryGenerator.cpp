@@ -30,6 +30,7 @@ namespace open_abb_driver
 				
 				if( i == 0 )
 				{
+					std::cout << "Adding initial node: " << cs->joints << std::endl;
 					search.AddNode( cs, true, false );
 				}
 				else
@@ -46,7 +47,6 @@ namespace open_abb_driver
 				{
 					edge.parent = prev;
 					edge.cost = kinematics.CalculateScore( curr->joints, prev->joints );
-					std::cout << "Adding edge to previous." << std::endl;
 					prev->AddEdge( edge );
 				}
 			}
@@ -55,16 +55,20 @@ namespace open_abb_driver
 		
 		BOOST_FOREACH( const JointWaypoint::Ptr& cs, currSolutions )
 		{
+			std::cout << "Adding goal node: " << cs->joints << std::endl;
 			search.AddNode( cs, false, true );
 		}
 		
 		std::vector<DijkstraNode::Ptr> path = search.Execute();
 		JointTrajectory traj;
+		double sumCost = 0;
 		BOOST_FOREACH( const DijkstraNode::Ptr& node, path )
 		{
 			JointWaypoint::Ptr waypoint = std::dynamic_pointer_cast<JointWaypoint>( node );
 			traj.push_back( *waypoint );
+			sumCost += node->GetCost();
 		}
+		std::cout << "Path found with cost " << sumCost << std::endl;
 		return traj;
 	}
 	

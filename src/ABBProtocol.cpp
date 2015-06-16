@@ -205,7 +205,7 @@ namespace open_abb_driver
 		msg += buff;
 		sprintf(buff,"%+08.2lf ",joint6);
 		msg += buff;
-		sprintf(buff,"%+08.2lf ",duration);
+		sprintf(buff,"%+04.6lf ",duration);
 		msg += buff;
 		msg += "#";
 		
