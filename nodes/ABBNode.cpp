@@ -96,7 +96,7 @@ namespace open_abb_driver
 	{
 		double defWOx,defWOy,defWOz,defWOqw,defWOqx,defWOqy,defWOqz;
 		double defTx,defTy,defTz,defTqw,defTqx,defTqy,defTqz;
-		std::vector<double> softness, defSoftness(6, 0.0);
+		std::vector<double> softness;
 		int zone;
 		double speedTCP, speedORI;
 		
@@ -141,12 +141,14 @@ namespace open_abb_driver
 		}
 		
 		// Softness
-		privHandle.param("softness", softness, defSoftness );
-		std::array<double,6> softn;
-		std::copy( softness.begin(), softness.end(), softn.begin() );
-		if( !SetSoftness( softn ) )
+		if( privHandle.getParam("softness", softness ) )
 		{
-			ROS_WARN( "Unable to set the joint softness." );
+			std::array<double,6> softn;
+			std::copy( softness.begin(), softness.end(), softn.begin() );
+			if( !SetSoftness( softn ) )
+			{
+				ROS_WARN( "Unable to set the joint softness." );
+			}
 		}
 		
 		//Speed
@@ -172,7 +174,7 @@ namespace open_abb_driver
 		// IK Joint Limits
 		std::vector<double> j1Lim, j2Lim, j3Lim, j4Lim, j5Lim, j6Lim;
 		std::vector<double> j1Def = { -3.146, 3.146 };
-		std::vector<double> j2Def = { -1.7453, 1.9199 };
+		std::vector<double> j2Def = { -1.45, 1.9199 };
 		std::vector<double> j3Def = { -1.0472, 1.1345 }; // This is limit of J3 + J2 (parallelogram)
 		std::vector<double> j4Def = { -3.49, 3.49 };
 		std::vector<double> j5Def = { -2.0944, 2.0944 };

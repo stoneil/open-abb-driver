@@ -33,6 +33,10 @@ int main( int argc, char** argv )
 	ph.getParam( "offset_qz", oqz );
 	PoseSE3 offset( ox, oy, oz, oqw, oqx, oqy, oqz );
 	
+	double timescale;
+	ph.param( "time_scale", timescale, 1.0 );
+	std::cout << "ts: " << timescale << std::endl;
+	
 	int subsample;
 	ph.param( "subsample", subsample, 1 );
 	
@@ -53,7 +57,7 @@ int main( int argc, char** argv )
 		}
 		
 		sscanf( line.c_str(), "%lf,%lf,%lf,%lf", &t, &x, &y, &z );
-		t = t*1E-6;
+		t = t*timescale;
 		
 		PoseSE3 dummy = offset*PoseSE3( x, y, z, 0, 0, 0 );
 		PoseSE3::Translation dummyTrans = dummy.GetTranslation();
@@ -71,6 +75,8 @@ int main( int argc, char** argv )
 		wp.pose = offset*PoseSE3( toolQuat, toolTrans );
 		wp.time = ros::Time( t ).toBoost();
 		ctraj.push_back( wp );
+		
+		ROS_INFO_STREAM( "Adding cartesian waypoint " << wp.pose );
 	}
 	
 	ROS_INFO_STREAM( "CSV parsed with " << ctraj.size() << " waypoints. Generating joint trajectory..." );

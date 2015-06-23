@@ -14,7 +14,7 @@ namespace open_abb_driver
 	{
 		weights.fill( 1.0 );
 		jointLimits[0] = std::pair<double,double>( -3.146, 3.146 );
-		jointLimits[1] = std::pair<double,double>( -1.7453, 1.9199 );
+		jointLimits[1] = std::pair<double,double>( -1.45, 1.9199 );
 		jointLimits[2] = std::pair<double,double>( -1.0472, 1.1345 );
 		jointLimits[3] = std::pair<double,double>( -3.49, 3.49 );
 		jointLimits[4] = std::pair<double,double>( -2.0944, 2.0944 );
