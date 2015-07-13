@@ -3,36 +3,36 @@
 namespace open_abb_driver
 {
 	
-	RobotController::RobotController( const ros::NodeHandle& nh, const ros::NodeHandle& ph ) 
+	ABBDriver::ABBDriver( const ros::NodeHandle& nh, const ros::NodeHandle& ph ) 
 	: nodeHandle( nh ), privHandle( ph ), feedbackVisitor( tfBroadcaster, cartesianPub )
 	{
 		Initialize();
 		
-		handle_AddWaypoint = privHandle.advertiseService("add_waypoint", &RobotController::AddWaypointCallback, this);
-		handle_ClearWaypoints = privHandle.advertiseService("clear_waypoints", &RobotController::ClearWaypointsCallback, this);
-		handle_ExecuteWaypoints = privHandle.advertiseService("execute_waypoints", &RobotController::ExecuteWaypointsCallback, this);
-		handle_GetNumWaypoints = privHandle.advertiseService("get_num_waypoints", &RobotController::GetNumWaypointsCallback, this);
-		handle_Ping = privHandle.advertiseService("ping", &RobotController::PingCallback, this);
-		handle_SetCartesian = privHandle.advertiseService("set_cartesian", &RobotController::SetCartesianCallback, this);
-		handle_GetCartesian = privHandle.advertiseService("get_cartesian", &RobotController::GetCartesianCallback, this);
-		handle_SetJoints = privHandle.advertiseService("set_joints", &RobotController::SetJointsCallback, this);
-		handle_GetJoints = privHandle.advertiseService("get_joints", &RobotController::GetJointsCallback, this);
-		handle_SetTool = privHandle.advertiseService("set_tool", &RobotController::SetToolCallback, this);
-		handle_SetWorkObject = privHandle.advertiseService("set_work_object", &RobotController::SetWorkObjectCallback, this);
-		handle_SetSpeed = privHandle.advertiseService("set_speed", &RobotController::SetSpeedCallback, this);
-		handle_SetZone = privHandle.advertiseService("set_zone", &RobotController::SetZoneCallback, this);
-		handle_SetSoftness = privHandle.advertiseService("set_softness", &RobotController::SetSoftnessCallback, this );
+		handle_AddWaypoint = privHandle.advertiseService("add_waypoint", &ABBDriver::AddWaypointCallback, this);
+		handle_ClearWaypoints = privHandle.advertiseService("clear_waypoints", &ABBDriver::ClearWaypointsCallback, this);
+		handle_ExecuteWaypoints = privHandle.advertiseService("execute_waypoints", &ABBDriver::ExecuteWaypointsCallback, this);
+		handle_GetNumWaypoints = privHandle.advertiseService("get_num_waypoints", &ABBDriver::GetNumWaypointsCallback, this);
+		handle_Ping = privHandle.advertiseService("ping", &ABBDriver::PingCallback, this);
+		handle_SetCartesian = privHandle.advertiseService("set_cartesian", &ABBDriver::SetCartesianCallback, this);
+		handle_GetCartesian = privHandle.advertiseService("get_cartesian", &ABBDriver::GetCartesianCallback, this);
+		handle_SetJoints = privHandle.advertiseService("set_joints", &ABBDriver::SetJointsCallback, this);
+		handle_GetJoints = privHandle.advertiseService("get_joints", &ABBDriver::GetJointsCallback, this);
+		handle_SetTool = privHandle.advertiseService("set_tool", &ABBDriver::SetToolCallback, this);
+		handle_SetWorkObject = privHandle.advertiseService("set_work_object", &ABBDriver::SetWorkObjectCallback, this);
+		handle_SetSpeed = privHandle.advertiseService("set_speed", &ABBDriver::SetSpeedCallback, this);
+		handle_SetZone = privHandle.advertiseService("set_zone", &ABBDriver::SetZoneCallback, this);
+		handle_SetSoftness = privHandle.advertiseService("set_softness", &ABBDriver::SetSoftnessCallback, this );
 		
 		cartesianPub = privHandle.advertise<geometry_msgs::PoseStamped>( "pose", 10, false );
-		feedbackWorker = boost::thread( boost::bind( &RobotController::FeedbackSpin, this ) );
+		feedbackWorker = boost::thread( boost::bind( &ABBDriver::FeedbackSpin, this ) );
 	}
 	
-	RobotController::~RobotController() 
+	ABBDriver::~ABBDriver() 
 	{
 		feedbackWorker.join();
 	}
 	
-	bool RobotController::Initialize()
+	bool ABBDriver::Initialize()
 	{
 		std::string robotIp;
 		int robotMotionPort;
@@ -57,7 +57,7 @@ namespace open_abb_driver
 		return true;
 	}
 	
-	void RobotController::FeedbackSpin()
+	void ABBDriver::FeedbackSpin()
 	{
 		while( ros::ok() )
 		{
@@ -92,7 +92,7 @@ namespace open_abb_driver
 		}
 	}
 	
-	bool RobotController::ConfigureRobot()
+	bool ABBDriver::ConfigureRobot()
 	{
 		double defWOx,defWOy,defWOz,defWOqw,defWOqx,defWOqy,defWOqz;
 		double defTx,defTy,defTz,defTqw,defTqx,defTqy,defTqz;
@@ -186,78 +186,85 @@ namespace open_abb_driver
 		privHandle.param( "joint5_limits", j5Lim, j5Def );
 		privHandle.param( "joint6_limits", j6Lim, j6Def );
 		
-		ikSolver.SetJointLimits( 0, std::pair<double,double>( j1Lim[0], j1Lim[1] ) );
-		ikSolver.SetJointLimits( 1, std::pair<double,double>( j2Lim[0], j2Lim[1] ) );
-		ikSolver.SetJointLimits( 2, std::pair<double,double>( j3Lim[0], j3Lim[1] ) );
-		ikSolver.SetJointLimits( 3, std::pair<double,double>( j4Lim[0], j4Lim[1] ) );
-		ikSolver.SetJointLimits( 4, std::pair<double,double>( j5Lim[0], j5Lim[1] ) );
-		ikSolver.SetJointLimits( 5, std::pair<double,double>( j6Lim[0], j6Lim[1] ) );
+		jointLimits[0] = std::pair<double,double>( j1Lim[0], j1Lim[1] );
+		jointLimits[1] = std::pair<double,double>( j2Lim[0], j2Lim[1] );
+		jointLimits[2] = std::pair<double,double>( j3Lim[0], j3Lim[1] );
+		jointLimits[3] = std::pair<double,double>( j4Lim[0], j4Lim[1] );
+		jointLimits[4] = std::pair<double,double>( j5Lim[0], j5Lim[1] );
+		jointLimits[5] = std::pair<double,double>( j6Lim[0], j6Lim[1] );
+		
+		ikSolver.SetJointLimits( 0, jointLimits[0] );
+		ikSolver.SetJointLimits( 1, jointLimits[1] );
+		ikSolver.SetJointLimits( 2, jointLimits[2] );
+		ikSolver.SetJointLimits( 3, jointLimits[3] );
+		ikSolver.SetJointLimits( 4, jointLimits[4] );
+		ikSolver.SetJointLimits( 5, jointLimits[5] );
 		
 		return true;
 	}
 	
-	bool RobotController::AddWaypointCallback( AddWaypoint::Request& req, AddWaypoint::Response& res )
+	bool ABBDriver::AddWaypointCallback( AddWaypoint::Request& req, AddWaypoint::Response& res )
 	{
 		std::array<double,6> position;
 		std::copy( req.position.begin(), req.position.end(), position.begin() );
 		return AddWaypoint( position, req.duration );
 	}
 	
-	bool RobotController::AddWaypoint( const JointAngles& angles, double duration )
+	bool ABBDriver::AddWaypoint( const JointAngles& angles, double duration )
 	{
 		JointAngles a( angles );
 		a[2] += a[1];
 		return controlInterface->AddWaypoint( a, duration );
 	}
 	
-	bool RobotController::ClearWaypointsCallback( ClearWaypoints::Request& req, ClearWaypoints::Response& res )
+	bool ABBDriver::ClearWaypointsCallback( ClearWaypoints::Request& req, ClearWaypoints::Response& res )
 	{
 		return ClearWaypoints();
 	}
 	
-	bool RobotController::ClearWaypoints()
+	bool ABBDriver::ClearWaypoints()
 	{
 		return controlInterface->ClearWaypoints();
 	}
 	
-	bool RobotController::ExecuteWaypointsCallback( ExecuteWaypoints::Request& req, ExecuteWaypoints::Response& res )
+	bool ABBDriver::ExecuteWaypointsCallback( ExecuteWaypoints::Request& req, ExecuteWaypoints::Response& res )
 	{
 		return ExecuteWaypoints();
 	}
 	
-	bool RobotController::ExecuteWaypoints()
+	bool ABBDriver::ExecuteWaypoints()
 	{
 		return controlInterface->ExecuteWaypoints();
 	}
 	
-	bool RobotController::GetNumWaypointsCallback( GetNumWaypoints::Request& req, GetNumWaypoints::Response& res )
+	bool ABBDriver::GetNumWaypointsCallback( GetNumWaypoints::Request& req, GetNumWaypoints::Response& res )
 	{
 		return GetNumWaypoints( res.numWaypoints );
 	}
 	
-	bool RobotController::GetNumWaypoints( int& num )
+	bool ABBDriver::GetNumWaypoints( int& num )
 	{
 		return controlInterface->GetNumWaypoints( num );
 	}
 	
-	bool RobotController::PingCallback( Ping::Request& req, Ping::Response& res )
+	bool ABBDriver::PingCallback( Ping::Request& req, Ping::Response& res )
 	{
 		return Ping();
 	}
 	
-	bool RobotController::Ping()
+	bool ABBDriver::Ping()
 	{
 		return controlInterface->Ping();
 	}
 	
-	bool RobotController::SetCartesianCallback( SetCartesian::Request& req, SetCartesian::Response& res )
+	bool ABBDriver::SetCartesianCallback( SetCartesian::Request& req, SetCartesian::Response& res )
 	{
 		PoseSE3 tform( req.x, req.y, req.z, req.qw, req.qx, req.qy, req.qz );
 		
 		return SetCartesian( tform );
 	}
 	
-	bool RobotController::SetCartesian( const PoseSE3& pose )
+	bool ABBDriver::SetCartesian( const PoseSE3& pose )
 	{
 		PoseSE3 eff = currWorkTrans*pose*currToolTrans.Inverse();
 		
@@ -278,7 +285,7 @@ namespace open_abb_driver
 		return( SetJoints( best ) );
 	}
 	
-	bool RobotController::GetCartesianCallback( GetCartesian::Request& req, GetCartesian::Response& res )
+	bool ABBDriver::GetCartesianCallback( GetCartesian::Request& req, GetCartesian::Response& res )
 	{
 		PoseSE3 pose;
 		if( !GetCartesian( pose ) ) { return false; }
@@ -294,7 +301,7 @@ namespace open_abb_driver
 		return true;
 	}
 	
-	bool RobotController::GetCartesian( PoseSE3& pose )
+	bool ABBDriver::GetCartesian( PoseSE3& pose )
 	{
 		JointAngles angles;
 		
@@ -304,7 +311,7 @@ namespace open_abb_driver
 		return true;
 	}
 	
-	bool RobotController::SetJointsCallback( SetJoints::Request& req, SetJoints::Response& res )
+	bool ABBDriver::SetJointsCallback( SetJoints::Request& req, SetJoints::Response& res )
 	{	
 		// ROS currently uses boost::array, so we have to copy it to maintain compatibility
 		std::array<double,6> position;
@@ -312,14 +319,24 @@ namespace open_abb_driver
 		return SetJoints( position );
 	}
 	
-	bool RobotController::SetJoints( const JointAngles& angles )
+	bool ABBDriver::SetJoints( const JointAngles& angles )
 	{
 		JointAngles a( angles );
 		a[2] += a[1];
+		
+		for( unsigned int i = 0; i < 6; i++ )
+		{
+			if( angles[i] < jointLimits[i].first || angles[i] > jointLimits[i].second )
+			{
+				ROS_ERROR_STREAM( "Commanded joint " << i+1 << " angle of " << angles[i] << " exceeds limits ("
+					<< jointLimits[i].first << ", " << jointLimits[i].second << ")." );
+				return false;
+			}
+		}
 		return controlInterface->SetJoints( a );
 	}
 	
-	bool RobotController::GetJointsCallback( GetJoints::Request& req, GetJoints::Response& res )
+	bool ABBDriver::GetJointsCallback( GetJoints::Request& req, GetJoints::Response& res )
 	{
 		std::array<double,6> position;
 		if( GetJoints(position) )
@@ -330,20 +347,20 @@ namespace open_abb_driver
 		else { return false; }
 	}
 	
-	bool RobotController::GetJoints( JointAngles& angles )
+	bool ABBDriver::GetJoints( JointAngles& angles )
 	{
 		if( !controlInterface->GetJoints( angles ) ) { return false; }
 		angles[2] -= angles[1];
 		return true;
 	}
 	
-	bool RobotController::SetToolCallback( SetTool::Request& req, SetTool::Response& res )
+	bool ABBDriver::SetToolCallback( SetTool::Request& req, SetTool::Response& res )
 	{
 		PoseSE3 tool( req.x, req.y, req.z, req.qw, req.qx, req.qy, req.qz );
 		return SetTool( tool );
 	}
 	
-	bool RobotController::SetTool( const PoseSE3& pose )
+	bool ABBDriver::SetTool( const PoseSE3& pose )
 	{
 		WriteLock lock( mutex );
 		currToolTrans = pose;
@@ -351,13 +368,13 @@ namespace open_abb_driver
 		return controlInterface->SetTool( vec[0], vec[1], vec[2], vec[3], vec[4], vec[5], vec[6] );
 	}
 	
-	bool RobotController::SetWorkObjectCallback( SetWorkObject::Request& req, SetWorkObject::Response& res )
+	bool ABBDriver::SetWorkObjectCallback( SetWorkObject::Request& req, SetWorkObject::Response& res )
 	{
 		PoseSE3 work( req.x, req.y, req.z, req.qw, req.qx, req.qy, req.qz );
 		return SetWorkObject( work );
 	}
 	
-	bool RobotController::SetWorkObject( const PoseSE3& pose )
+	bool ABBDriver::SetWorkObject( const PoseSE3& pose )
 	{
 		WriteLock lock( mutex );
 		currWorkTrans = pose;
@@ -365,34 +382,34 @@ namespace open_abb_driver
 		return controlInterface->SetWorkObject( vec[0], vec[1], vec[2], vec[3], vec[4], vec[5], vec[6] );
 	}
 	
-	bool RobotController::SetSpeedCallback( SetSpeed::Request& req, SetSpeed::Response& res )
+	bool ABBDriver::SetSpeedCallback( SetSpeed::Request& req, SetSpeed::Response& res )
 	{
 		return SetSpeed(req.tcp, req.ori);
 	}
 	
-	bool RobotController::SetSpeed( double linear, double orientation )
+	bool ABBDriver::SetSpeed( double linear, double orientation )
 	{
 		return controlInterface->SetSpeed( linear, orientation );
 	}
 	
-	bool RobotController::SetZoneCallback( SetZone::Request& req, SetZone::Response& res )
+	bool ABBDriver::SetZoneCallback( SetZone::Request& req, SetZone::Response& res )
 	{
 		return SetZone(req.mode);
 	}
 	
-	bool RobotController::SetZone( unsigned int zone )
+	bool ABBDriver::SetZone( unsigned int zone )
 	{
 		return controlInterface->SetZone( zone );
 	}
 	
-	bool RobotController::SetSoftnessCallback( SetSoftness::Request& req, SetSoftness::Response& res )
+	bool ABBDriver::SetSoftnessCallback( SetSoftness::Request& req, SetSoftness::Response& res )
 	{
 		std::array<double,6> softness;
 		std::copy( req.softness.begin(), req.softness.end(), softness.begin() );
 		return SetSoftness( softness );
 	}
 	
-	bool RobotController::SetSoftness( const std::array<double,6>& softness )
+	bool ABBDriver::SetSoftness( const std::array<double,6>& softness )
 	{
 		return controlInterface->SetSoftness( softness );
 	}
@@ -449,10 +466,10 @@ using namespace open_abb_driver;
 
 int main(int argc, char** argv)
 {
-	ros::init(argc, argv, "controller");
+	ros::init(argc, argv, "abb_driver");
 	ros::NodeHandle nh;
 	ros::NodeHandle ph( "~" );
-	RobotController ABBrobot( nh, ph );
+	ABBDriver ABBrobot( nh, ph );
 	
 	ros::MultiThreadedSpinner spinner(2);
 	spinner.spin();

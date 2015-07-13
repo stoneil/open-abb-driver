@@ -82,11 +82,11 @@ namespace open_abb_driver
 		
 	};
 	
-	class RobotController
+	class ABBDriver
 	{
 	public:
-		RobotController( const ros::NodeHandle& nh, const ros::NodeHandle& ph );
-		~RobotController();
+		ABBDriver( const ros::NodeHandle& nh, const ros::NodeHandle& ph );
+		~ABBDriver();
 		
 		// Service Callbacks
 		bool AddWaypointCallback( AddWaypoint::Request& req, AddWaypoint::Response& res );
@@ -119,29 +119,6 @@ namespace open_abb_driver
 		bool SetZone( unsigned int zone );
 		bool SetSoftness( const std::array<double,6>& softness );
 		
-		// Call back function for the logging which will be called by a timer event
-		void logCallback(const ros::TimerEvent&);
-		
-		// Non-Blocking move variables
-		bool stopRequest;   // Set to true when we are trying to stop the robot
-		bool stopConfirm;   // Set to true when the thread is sure it's stopped
-		bool cart_move;     // True if we're doing a cartesian move, false if joint
-		
-		// Variables dealing with changing non-blocking speed and step sizes
-		double curCartStep;     // Largest cartesian stepsize during non-blocking
-		double curOrientStep;   // Largest orientation step size during non-blocking
-		double curJointStep;    // Largest joint step size during non-blocking
-		double curDist[3];      // Max allowable tracking error (pos, ang, joint)
-		
-		// Most recent goal position, and the final target position
-		double curGoalJ[6];
-		double curTargJ[6];
-		
-		// Functions that compute our distance from the current position to the goal
-		double posDistFromGoal();
-		double orientDistFromGoal();
-		double jointDistFromGoal();
-		
 	private:
 		
 		typedef boost::shared_mutex Mutex;
@@ -159,6 +136,9 @@ namespace open_abb_driver
 		ABBFeedbackInterface::Ptr feedbackInterface;
 		ABBKinematics ikSolver;
 		
+		// TODO Change to Limits struct to avoid first/second confusion
+		std::array< std::pair<double,double>, 6 > jointLimits;
+
 		// Initialize the robot
 		bool Initialize();
 		
@@ -167,7 +147,6 @@ namespace open_abb_driver
 		
 		void FeedbackSpin();
 		
-		//handles to ROS stuff
 		tf::TransformBroadcaster tfBroadcaster;
 		FeedbackVisitor feedbackVisitor;
 		
@@ -185,20 +164,12 @@ namespace open_abb_driver
 		ros::ServiceServer handle_SetSpeed;
 		ros::ServiceServer handle_SetZone;
 		ros::ServiceServer handle_SetSoftness;
-		ros::ServiceServer handle_SpecialCommand;
-		
-		// Functions to handle setting up non-blocking step sizes
-		bool setTrackDist(double pos_dist, double ang_dist);
-		bool setNonBlockSpeed(double tcp, double ori);
 		
 		// Robot State
 		PoseSE3 currToolTrans;
 		PoseSE3 currWorkTrans;
 		
 		boost::thread feedbackWorker;
-		
-		bool SetWorkObject( double x, double y, double z, double q0, double q1,
-							double q2, double q3 );
 		
 	};
 	
