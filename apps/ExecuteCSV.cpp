@@ -2,11 +2,14 @@
 #include "open_abb_driver/TrajectoryGenerator.h"
 #include "open_abb_driver/AddWaypoint.h"
 
+#include "argus_utils/PoseSE3.h"
+
 #include <fstream>
 
 #include <Eigen/Dense>
 
 using namespace open_abb_driver;
+using namespace argus_utils;
 
 int main( int argc, char** argv )
 {
@@ -59,7 +62,7 @@ int main( int argc, char** argv )
 		sscanf( line.c_str(), "%lf,%lf,%lf,%lf", &t, &x, &y, &z );
 		t = t*timescale;
 		
-		PoseSE3 dummy = offset*PoseSE3( x, y, z, 0, 0, 0 );
+		PoseSE3 dummy = offset*PoseSE3( x, y, z );
 		PoseSE3::Translation dummyTrans = dummy.GetTranslation();
 		Eigen::Vector3d radial( dummyTrans.x(), dummyTrans.y(), dummyTrans.z() );
 		toolQuat.setFromTwoVectors( orig, radial );
@@ -72,7 +75,7 @@ int main( int argc, char** argv )
 		}
 
 		PoseSE3::Translation toolTrans( x, y, z );
-		wp.pose = offset*PoseSE3( toolQuat, toolTrans );
+		wp.pose = offset*PoseSE3( toolTrans, toolQuat );
 		wp.time = ros::Time( t ).toBoost();
 		ctraj.push_back( wp );
 		

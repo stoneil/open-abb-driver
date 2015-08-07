@@ -1,13 +1,13 @@
 #ifndef _ABB_TRAJECTORY_GENERATOR_H_
 #define _ABB_TRAJECTORY_GENERATOR_H_
 
-#include "open_abb_driver/ABBKinematics.h"
-#include "open_abb_driver/PoseSE3.h"
+#include "argus_utils/PoseSE3.h"
 
 #include <boost/date_time/posix_time/posix_time.hpp>
 
 #include <stdexcept>
 
+#include "open_abb_driver/ABBKinematics.h"
 #include "open_abb_driver/SimpleDijkstra.hpp"
 
 namespace open_abb_driver
@@ -15,7 +15,7 @@ namespace open_abb_driver
 	
 	struct CartesianWaypoint
 	{
-		PoseSE3 pose;
+		argus_utils::PoseSE3 pose;
 		boost::posix_time::ptime time;
 	};
 	typedef std::vector<CartesianWaypoint> CartesianTrajectory;

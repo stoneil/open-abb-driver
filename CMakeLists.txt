@@ -7,7 +7,8 @@ set( CMAKE_BUILD_TYPE Release )
 find_package( catkin 	REQUIRED
 	COMPONENTS 			roscpp
 						message_generation
-						tf )
+						tf
+						argus_utils )
 
 find_package(Eigen3 REQUIRED)
 
@@ -55,7 +56,6 @@ add_library( abb_comm
 add_library( abb2400_ikfast
 			 src/IKFastSolver.cpp
 			 src/ABBKinematics.cpp
-			 src/PoseSE3.cpp
 			 src/TrajectoryGenerator.cpp )
 			 
 add_dependencies( abb_comm ${open_abb_driver_EXPORTED_TARGETS} )

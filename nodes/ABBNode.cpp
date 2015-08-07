@@ -1,5 +1,7 @@
 #include "open_abb_driver/ABBNode.h"
 
+using namespace argus_utils;
+
 namespace open_abb_driver
 {
 	

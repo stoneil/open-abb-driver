@@ -1,7 +1,8 @@
 #include "open_abb_driver/ABBControlInterface.h"
 #include "open_abb_driver/ABBFeedbackInterface.h"
-#include "open_abb_driver/PoseSE3.h"
 #include "open_abb_driver/ABBKinematics.h"
+
+#include "argus_utils/PoseSE3.h"
 
 //ROS specific
 #include <ros/ros.h>
@@ -109,12 +110,12 @@ namespace open_abb_driver
 		bool ExecuteWaypoints();
 		bool GetNumWaypoints( int& num );
 		bool Ping();
-		bool SetCartesian( const PoseSE3& pose );
-		bool GetCartesian( PoseSE3& pose );
+		bool SetCartesian( const argus_utils::PoseSE3& pose );
+		bool GetCartesian( argus_utils::PoseSE3& pose );
 		bool SetJoints( const JointAngles& angles );
 		bool GetJoints( JointAngles& angles );
-		bool SetTool( const PoseSE3& pose );
-		bool SetWorkObject( const PoseSE3& pose );
+		bool SetTool( const argus_utils::PoseSE3& pose );
+		bool SetWorkObject( const argus_utils::PoseSE3& pose );
 		bool SetSpeed( double linear, double orientation );
 		bool SetZone( unsigned int zone );
 		bool SetSoftness( const std::array<double,6>& softness );
@@ -166,8 +167,8 @@ namespace open_abb_driver
 		ros::ServiceServer handle_SetSoftness;
 		
 		// Robot State
-		PoseSE3 currToolTrans;
-		PoseSE3 currWorkTrans;
+		argus_utils::PoseSE3 currToolTrans;
+		argus_utils::PoseSE3 currWorkTrans;
 		
 		boost::thread feedbackWorker;
 		

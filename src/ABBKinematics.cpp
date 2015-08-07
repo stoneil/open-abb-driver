@@ -1,5 +1,7 @@
 #include "open_abb_driver/ABBKinematics.h"
 
+using namespace argus_utils;
+
 namespace open_abb_driver
 {
 	
@@ -69,7 +71,7 @@ namespace open_abb_driver
 		PoseSE3::Quaternion quat( R );
 		PoseSE3::Translation t( trans[0], trans[1], trans[2] );
 		
-		return PoseSE3( quat, t );
+		return PoseSE3( t, quat );
 	}
 	
 	bool ABBKinematics::ComputeIK( const PoseSE3& ref, std::vector<JointAngles>& solutions )
@@ -79,7 +81,7 @@ namespace open_abb_driver
 		IkSolutionList<IkReal> ikSols;
 		IkReal rot[9], trans[3];
 		
-		PoseSE3::Matrix H = ref.ToMatrix();
+		PoseSE3::Matrix H = ref.ToTransform().matrix();
 		rot[0] = H(0,0);
 		rot[1] = H(0,1);
 		rot[2] = H(0,2);
