@@ -62,7 +62,7 @@ int main( int argc, char** argv )
 		sscanf( line.c_str(), "%lf,%lf,%lf,%lf", &t, &x, &y, &z );
 		t = t*timescale;
 		
-		PoseSE3 dummy = offset*PoseSE3( x, y, z );
+		PoseSE3 dummy = offset*PoseSE3( x, y, z, 1, 0, 0, 0 );
 		PoseSE3::Translation dummyTrans = dummy.GetTranslation();
 		Eigen::Vector3d radial( dummyTrans.x(), dummyTrans.y(), dummyTrans.z() );
 		toolQuat.setFromTwoVectors( orig, radial );
