@@ -1,8 +1,9 @@
 #include "open_abb_driver/ABBControlInterface.h"
 #include "open_abb_driver/ABBFeedbackInterface.h"
 #include "open_abb_driver/ABBKinematics.h"
+#include "open_abb_driver/TrajectoryGenerator.h"
 
-#include "argus_utils/PoseSE3.h"
+#include "argus_utils/geometry/PoseSE3.h"
 
 //ROS specific
 #include <ros/ros.h>
@@ -12,6 +13,7 @@
 #include <open_abb_driver/ExecuteWaypoints.h>
 #include <open_abb_driver/Ping.h>
 #include <open_abb_driver/SetCartesian.h>
+#include <open_abb_driver/SetCartesianLinear.h>
 #include <open_abb_driver/GetCartesian.h>
 #include <open_abb_driver/GetNumWaypoints.h>
 #include <open_abb_driver/SetWorkObject.h>
@@ -71,15 +73,15 @@ namespace open_abb_driver
 	{
 	public:
 		
-		FeedbackVisitor( tf::TransformBroadcaster& broadcaster, ros::Publisher& cp );
+		FeedbackVisitor( tf::TransformBroadcaster& tb, ros::Publisher& cp );
 		
 		void operator()( const JointFeedback& fb );
 		void operator()( const CartesianFeedback& fb );
 		
 	private:
 		
-		tf::TransformBroadcaster& tfBroadcaster;
-		ros::Publisher& cartesianPub;
+		tf::TransformBroadcaster& _tfBroadcaster;
+		ros::Publisher& _cartesianPub;
 		
 	};
 	
@@ -96,6 +98,8 @@ namespace open_abb_driver
 		bool GetNumWaypointsCallback( GetNumWaypoints::Request& req, GetNumWaypoints::Response& res );
 		bool PingCallback( Ping::Request& req, Ping::Response& res );
 		bool SetCartesianCallback( SetCartesian::Request& req, SetCartesian::Response& res );
+		bool SetCartesianLinearCallback( SetCartesianLinear::Request& req, 
+		                                 SetCartesianLinear::Response& res );
 		bool GetCartesianCallback( GetCartesian::Request& req, GetCartesian::Response& res );
 		bool SetJointsCallback( SetJoints::Request& req, SetJoints::Response& res );
 		bool GetJointsCallback( GetJoints::Request& req, GetJoints::Response& res );
@@ -110,12 +114,12 @@ namespace open_abb_driver
 		bool ExecuteWaypoints();
 		bool GetNumWaypoints( int& num );
 		bool Ping();
-		bool SetCartesian( const argus_utils::PoseSE3& pose );
-		bool GetCartesian( argus_utils::PoseSE3& pose );
+		bool SetCartesian( const argus::PoseSE3& pose );
+		bool GetCartesian( argus::PoseSE3& pose );
 		bool SetJoints( const JointAngles& angles );
 		bool GetJoints( JointAngles& angles );
-		bool SetTool( const argus_utils::PoseSE3& pose );
-		bool SetWorkObject( const argus_utils::PoseSE3& pose );
+		bool SetTool( const argus::PoseSE3& pose );
+		bool SetWorkObject( const argus::PoseSE3& pose );
 		bool SetSpeed( double linear, double orientation );
 		bool SetZone( unsigned int zone );
 		bool SetSoftness( const std::array<double,6>& softness );
@@ -126,19 +130,20 @@ namespace open_abb_driver
 		typedef boost::unique_lock< Mutex > WriteLock;
 		typedef boost::shared_lock< Mutex > ReadLock;
 		
-		Mutex mutex;
+		Mutex _mutex;
 		
-		ros::NodeHandle nodeHandle;
-		ros::NodeHandle privHandle;
+		ros::NodeHandle _nodeHandle;
+		ros::NodeHandle _privHandle;
 		
-		ros::Publisher cartesianPub;
+		ros::Publisher _cartesianPub;
 		
-		ABBControlInterface::Ptr controlInterface;
-		ABBFeedbackInterface::Ptr feedbackInterface;
-		ABBKinematics ikSolver;
+		ABBControlInterface::Ptr _controlInterface;
+		ABBFeedbackInterface::Ptr _feedbackInterface;
+		ABBKinematics::Ptr _ikSolver;
+		TrajectoryGenerator::Ptr _trajPlanner;
 		
 		// TODO Change to Limits struct to avoid first/second confusion
-		std::array< std::pair<double,double>, 6 > jointLimits;
+		std::array< std::pair<double,double>, 6 > _jointLimits;
 
 		// Initialize the robot
 		bool Initialize();
@@ -148,29 +153,30 @@ namespace open_abb_driver
 		
 		void FeedbackSpin();
 		
-		tf::TransformBroadcaster tfBroadcaster;
-		FeedbackVisitor feedbackVisitor;
+		tf::TransformBroadcaster _tfBroadcaster;
+		FeedbackVisitor _feedbackVisitor;
 		
-		ros::ServiceServer handle_AddWaypoint;
-		ros::ServiceServer handle_ClearWaypoints;
-		ros::ServiceServer handle_ExecuteWaypoints;
-		ros::ServiceServer handle_GetNumWaypoints;
-		ros::ServiceServer handle_Ping;
-		ros::ServiceServer handle_SetCartesian;
-		ros::ServiceServer handle_GetCartesian;
-		ros::ServiceServer handle_SetJoints;
-		ros::ServiceServer handle_GetJoints;
-		ros::ServiceServer handle_SetTool;
-		ros::ServiceServer handle_SetWorkObject;
-		ros::ServiceServer handle_SetSpeed;
-		ros::ServiceServer handle_SetZone;
-		ros::ServiceServer handle_SetSoftness;
+		ros::ServiceServer _addWaypointServer;
+		ros::ServiceServer _clearWaypointsServer;
+		ros::ServiceServer _executeWaypointsServer;
+		ros::ServiceServer _getNumWaypointsServer;
+		ros::ServiceServer _pingServer;
+		ros::ServiceServer _setCartesianServer;
+		ros::ServiceServer _setCartesianLinearServer;
+		ros::ServiceServer _getCartesianServer;
+		ros::ServiceServer _setJointsServer;
+		ros::ServiceServer _getJointsServer;
+		ros::ServiceServer _setToolServer;
+		ros::ServiceServer _setWorkObjectServer;
+		ros::ServiceServer _setSpeedServer;
+		ros::ServiceServer _setZoneServer;
+		ros::ServiceServer _setSoftnessServer;
 		
 		// Robot State
-		argus_utils::PoseSE3 currToolTrans;
-		argus_utils::PoseSE3 currWorkTrans;
+		argus::PoseSE3 _currToolTrans;
+		argus::PoseSE3 _currWorkTrans;
 		
-		boost::thread feedbackWorker;
+		boost::thread _feedbackWorker;
 		
 	};
 	

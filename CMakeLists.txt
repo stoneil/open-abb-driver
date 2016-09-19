@@ -7,6 +7,7 @@ set( CMAKE_BUILD_TYPE Release )
 find_package( catkin 	REQUIRED
 	COMPONENTS 			roscpp
 						message_generation
+						geometry_msgs
 						tf
 						argus_utils )
 
@@ -21,6 +22,7 @@ add_service_files(
 					GetJoints.srv
 					Ping.srv
 					SetCartesian.srv
+					SetCartesianLinear.srv
 					SetDIO.srv
 					SetJoints.srv
 					SetSpeed.srv
@@ -30,16 +32,18 @@ add_service_files(
 					SetSoftness.srv
 )
 
-generate_messages()
+generate_messages( DEPENDENCIES geometry_msgs )
 
 catkin_package(
 	INCLUDE_DIRS	include
+					${EIGEN3_INCLUDE_DIR}
 	
 	LIBRARIES 		abb_comm
-					abb2400_ikfast
 					
 	CATKIN_DEPENDS 	roscpp
+					geometry_msgs
 					tf
+					argus_utils
 					
 	DEPENDS 		Eigen3
 )
@@ -51,33 +55,24 @@ include_directories( include
 add_library( abb_comm 
 			 src/ABBProtocol.cpp
 			 src/ABBControlInterface.cpp
-			 src/ABBFeedbackInterface.cpp )
-
-add_library( abb2400_ikfast
+			 src/ABBFeedbackInterface.cpp
 			 src/IKFastSolver.cpp
 			 src/ABBKinematics.cpp
 			 src/TrajectoryGenerator.cpp )
 			 
 add_dependencies( abb_comm ${open_abb_driver_EXPORTED_TARGETS} )
-target_link_libraries( abb_comm
-	abb2400_ikfast
-	${catkin_LIBRARIES} )
+target_link_libraries( abb_comm	${catkin_LIBRARIES} )
 
 add_executable( abb_node nodes/ABBNode.cpp )
 add_dependencies( abb_node ${PROJECT_NAME}_gencfg )
-target_link_libraries( abb_node abb_comm )
+target_link_libraries( abb_node abb_comm ${catkin_LIBRARIES} )
 
-add_executable( execute_csv apps/ExecuteCSV.cpp )
-add_dependencies( execute_csv ${PROJECT_NAME}_gencfg )
-target_link_libraries( execute_csv abb_comm )
+# add_executable( execute_csv apps/ExecuteCSV.cpp )
+# add_dependencies( execute_csv ${PROJECT_NAME}_gencfg )
+# target_link_libraries( execute_csv abb_comm ${catkin_LIBRARIES} )
 
 install( TARGETS abb_comm abb_node
 	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-	)
-
-install( DIRECTORY include/open_abb_driver
-	DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-	FILES_MATCHING PATTERN "*.h"
 )

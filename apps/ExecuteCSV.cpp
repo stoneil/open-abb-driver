@@ -2,14 +2,13 @@
 #include "open_abb_driver/TrajectoryGenerator.h"
 #include "open_abb_driver/AddWaypoint.h"
 
-#include "argus_utils/PoseSE3.h"
+#include "argus_utils/geometry/PoseSE3.h"
 
 #include <fstream>
 
 #include <Eigen/Dense>
 
 using namespace open_abb_driver;
-using namespace argus_utils;
 
 int main( int argc, char** argv )
 {
@@ -34,7 +33,7 @@ int main( int argc, char** argv )
 	ph.getParam( "offset_qx", oqx );
 	ph.getParam( "offset_qy", oqy );
 	ph.getParam( "offset_qz", oqz );
-	PoseSE3 offset( ox, oy, oz, oqw, oqx, oqy, oqz );
+	argus::PoseSE3 offset( ox, oy, oz, oqw, oqx, oqy, oqz );
 	
 	double timescale;
 	ph.param( "time_scale", timescale, 1.0 );
@@ -62,8 +61,8 @@ int main( int argc, char** argv )
 		sscanf( line.c_str(), "%lf,%lf,%lf,%lf", &t, &x, &y, &z );
 		t = t*timescale;
 		
-		PoseSE3 dummy = offset*PoseSE3( x, y, z, 1, 0, 0, 0 );
-		PoseSE3::Translation dummyTrans = dummy.GetTranslation();
+		argus::PoseSE3 dummy = offset*argus::PoseSE3( x, y, z, 1, 0, 0, 0 );
+		argus::Translation3Type dummyTrans = dummy.GetTranslation();
 		Eigen::Vector3d radial( dummyTrans.x(), dummyTrans.y(), dummyTrans.z() );
 		toolQuat.setFromTwoVectors( orig, radial );
 		if( std::isnan( toolQuat.w() ) )
@@ -74,8 +73,8 @@ int main( int argc, char** argv )
 			toolQuat.z() = 0.0;
 		}
 
-		PoseSE3::Translation toolTrans( x, y, z );
-		wp.pose = offset*PoseSE3( toolTrans, toolQuat );
+		argus::Translation3Type toolTrans( x, y, z );
+		wp.pose = offset*argus::PoseSE3( toolTrans, toolQuat );
 		wp.time = ros::Time( t ).toBoost();
 		ctraj.push_back( wp );
 		

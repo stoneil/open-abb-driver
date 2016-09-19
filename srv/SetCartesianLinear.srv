@@ -1,0 +1,8 @@
+# Service to command the arm to move to a specific
+# end effector pose while moving with constant body velocity
+
+geometry_msgs/Pose pose
+float64 duration
+uint32 num_waypoints
+
+---

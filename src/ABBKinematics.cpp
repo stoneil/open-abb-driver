@@ -1,7 +1,5 @@
 #include "open_abb_driver/ABBKinematics.h"
 
-using namespace argus_utils;
-
 namespace open_abb_driver
 {
 	
@@ -43,7 +41,7 @@ namespace open_abb_driver
 		weights = w;
 	}
 	
-	PoseSE3 ABBKinematics::ComputeFK( const JointAngles& angles )
+	argus::PoseSE3 ABBKinematics::ComputeFK( const JointAngles& angles )
 	{
 		using namespace ikfast;
 		
@@ -68,20 +66,20 @@ namespace open_abb_driver
 		R(2,0) = rot[6];
 		R(2,1) = rot[7];
 		R(2,2) = rot[8];
-		PoseSE3::Quaternion quat( R );
-		PoseSE3::Translation t( trans[0], trans[1], trans[2] );
+		argus::QuaternionType quat( R );
+		argus::Translation3Type t( trans[0], trans[1], trans[2] );
 		
-		return PoseSE3( t, quat );
+		return argus::PoseSE3( t, quat );
 	}
 	
-	bool ABBKinematics::ComputeIK( const PoseSE3& ref, std::vector<JointAngles>& solutions )
+	bool ABBKinematics::ComputeIK( const argus::PoseSE3& ref, std::vector<JointAngles>& solutions )
 	{
 		using namespace ikfast;
 		
 		IkSolutionList<IkReal> ikSols;
 		IkReal rot[9], trans[3];
 		
-		PoseSE3::Matrix H = ref.ToTransform().matrix();
+		Eigen::Matrix4d H = ref.ToMatrix();
 		rot[0] = H(0,0);
 		rot[1] = H(0,1);
 		rot[2] = H(0,2);
