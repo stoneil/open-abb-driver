@@ -9,7 +9,7 @@ namespace open_abb_driver
 {
 	
 ABBDriver::ABBDriver( const ros::NodeHandle& nh, const ros::NodeHandle& ph ) 
-: _nodeHandle( nh ), _privHandle( ph ), _feedbackVisitor( _tfBroadcaster, _cartesianPub )
+: _nodeHandle( nh ), _privHandle( ph )
 {
 	Initialize();
 	
@@ -101,10 +101,31 @@ void ABBDriver::FeedbackSpin()
 	{
 		_feedbackInterface->Spin();
 		bool published = false;
+
 		while( _feedbackInterface->HasFeedback() )
 		{
-			Feedback fb = _feedbackInterface->GetFeedback();
-			boost::apply_visitor( _feedbackVisitor, fb );
+			JointFeedback fb = _feedbackInterface->GetFeedback();
+
+			// TODO Currently no way to synchronize clocks with ABB arm
+			ros::Time now = ros::Time::now();
+			JointAngles angles = fb.joints;
+			angles[2] -= angles[1];
+			
+			// TODO Make this cleaner
+			PoseSE3 fwd = ABBKinematics::ComputeFK( angles );
+			fwd = _currWorkTrans.Inverse()*fwd*_currToolTrans;
+			
+			FixedVectorType<7> fwdv = fwd.ToVector();
+			tf::Vector3 translation( fwdv[0], fwdv[1], fwdv[2] );
+			tf::Quaternion quat( fwdv[4], fwdv[5], fwdv[6], fwdv[3] );
+			tf::Transform transform( quat, translation );
+			tf::StampedTransform msg( transform, now, "abb_base", "abb_end_effector" );
+			_tfBroadcaster.sendTransform( msg );
+			
+			geometry_msgs::PoseStamped poseMsg;
+			poseMsg.pose = PoseToMsg( fwd );
+			poseMsg.header.stamp = now;
+			_cartesianPub.publish( poseMsg );
 			published = true;
 		}
 		
@@ -337,7 +358,7 @@ bool ABBDriver::SetCartesianLinearCallback( SetCartesianLinear::Request& req,
 		CartesianWaypoint wp;
 		wp.pose = acc;
 		wp.time = ros::Duration( tAcc );
-		ROS_INFO_STREAM( "Waypoint pose: " << wp.pose );
+		// ROS_INFO_STREAM( "Waypoint pose: " << wp.pose );
 		traj.push_back( wp );
 	}
 
@@ -372,7 +393,7 @@ bool ABBDriver::SetCartesianLinearCallback( SetCartesianLinear::Request& req,
 	// Skip the first waypoint since we are "already there"
 	for( unsigned int i = 1; i < jTraj.size(); ++i )
 	{
-		ROS_INFO_STREAM( "Adding waypoint: " << jTraj[i].joints << " dt: " << dt );
+		// ROS_INFO_STREAM( "Adding waypoint: " << jTraj[i].joints << " dt: " << dt );
 		if( !AddWaypoint( jTraj[i].joints, dt ) )
 		{
 			ROS_ERROR_STREAM( "Could not add waypoint to buffer." );
@@ -532,56 +553,14 @@ bool ABBDriver::SetSoftness( const std::array<double,6>& softness )
 	return _controlInterface->SetSoftness( softness );
 }
 
-FeedbackVisitor::FeedbackVisitor( tf::TransformBroadcaster& broadcaster, ros::Publisher& cb )
-	: _tfBroadcaster( broadcaster ), _cartesianPub( cb )
-{}
-
-void FeedbackVisitor::operator()( const JointFeedback& fb )
-{
-	ros::Time now = ros::Time::now();
-	JointAngles angles = fb.joints;
-	angles[2] -= angles[1];
-	
-	PoseSE3 fwd = ABBKinematics::ComputeFK( angles );
-	
-	FixedVectorType<7> fwdv = fwd.ToVector();
-	tf::Vector3 translation( fwdv[0], fwdv[1], fwdv[2] );
-	tf::Quaternion quat( fwdv[4], fwdv[5], fwdv[6], fwdv[3] );
-	tf::Transform transform( quat, translation );
-	tf::StampedTransform msg( transform, now, "abb_base", "abb_end_effector" );
-	_tfBroadcaster.sendTransform( msg );
-	
-	geometry_msgs::PoseStamped poseMsg;
-	poseMsg.pose = PoseToMsg( fwd );
-	poseMsg.header.stamp = now;
-	_cartesianPub.publish( poseMsg );
 }
-
-// DEPRECATED
-void FeedbackVisitor::operator()( const CartesianFeedback& fb )
-{
-// 		geometry_msgs::PoseStamped poseMsg;
-// 		poseMsg.header.stamp = ros::Time::now();
-// 		poseMsg.pose.position.x = fb.x;
-// 		poseMsg.pose.position.y = fb.y;
-// 		poseMsg.pose.position.z = fb.z;
-// 		poseMsg.pose.orientation.w = fb.qw;
-// 		poseMsg.pose.orientation.x = fb.qx;
-// 		poseMsg.pose.orientation.y = fb.qy;
-// 		poseMsg.pose.orientation.z = fb.qz;
-// 		_cartesianPub.publish( poseMsg );
-}
-	
-}
-
-using namespace open_abb_driver;
 
 int main(int argc, char** argv)
 {
 	ros::init(argc, argv, "abb_driver");
 	ros::NodeHandle nh;
 	ros::NodeHandle ph( "~" );
-	ABBDriver ABBrobot( nh, ph );
+	open_abb_driver::ABBDriver ABBrobot( nh, ph );
 	
 	ros::MultiThreadedSpinner spinner(2);
 	spinner.spin();

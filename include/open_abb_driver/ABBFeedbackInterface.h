@@ -19,21 +19,6 @@ struct JointFeedback
 	std::array<double,6> joints;
 };
 
-struct CartesianFeedback
-{
-	std::string date;
-	std::string time;
-	double x;
-	double y;
-	double z;
-	double qw;
-	double qx;
-	double qy;
-	double qz;
-};
-	
-typedef boost::variant< JointFeedback, CartesianFeedback > Feedback;
-	
 class ABBFeedbackInterface 
 {
 public:
@@ -46,14 +31,14 @@ public:
 	
 	void Spin();
 	bool HasFeedback() const;
-	Feedback GetFeedback();
+	JointFeedback GetFeedback();
 	
 private:
 	
 	mutable boost::mutex mutex;
 	int loggerSocket;
 	
-	boost::circular_buffer<Feedback> outgoing;
+	boost::circular_buffer<JointFeedback> outgoing;
 	
 };
 

@@ -67,24 +67,6 @@
 
 namespace open_abb_driver
 {
-	/*! \brief Class to process the Feedback variant types */
-	class FeedbackVisitor
-		: public boost::static_visitor<>
-	{
-	public:
-		
-		FeedbackVisitor( tf::TransformBroadcaster& tb, ros::Publisher& cp );
-		
-		void operator()( const JointFeedback& fb );
-		void operator()( const CartesianFeedback& fb );
-		
-	private:
-		
-		tf::TransformBroadcaster& _tfBroadcaster;
-		ros::Publisher& _cartesianPub;
-		
-	};
-	
 	class ABBDriver
 	{
 	public:
@@ -154,7 +136,6 @@ namespace open_abb_driver
 		void FeedbackSpin();
 		
 		tf::TransformBroadcaster _tfBroadcaster;
-		FeedbackVisitor _feedbackVisitor;
 		
 		ros::ServiceServer _addWaypointServer;
 		ros::ServiceServer _clearWaypointsServer;
