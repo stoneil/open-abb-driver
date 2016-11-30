@@ -154,14 +154,8 @@ void ABBDriver::FeedbackSpin()
 bool ABBDriver::ConfigureRobot()
 {
 	//WorkObject
-	YAML::Node workObjYaml;
 	PoseSE3 workObj;
-	GetParamRequired( _privHandle, "work_object_pose", workObjYaml );
-	if( !GetPoseYaml( workObjYaml, workObj ) )
-	{
-		ROS_ERROR_STREAM( "Could not parse work object pose." );
-		return false;
-	}
+	GetParamRequired( _privHandle, "work_object_pose", workObj );
 	if( !SetWorkObject( workObj ) )
 	{
 		ROS_WARN( "Unable to set the work object." );
@@ -169,13 +163,8 @@ bool ABBDriver::ConfigureRobot()
 	}
 	
 	//Tool
-	YAML::Node toolYaml;
 	PoseSE3 tool;
-	GetParamRequired( _privHandle, "tool_pose", toolYaml );
-	if( !GetPoseYaml( toolYaml, tool ) )
-	{
-		ROS_ERROR_STREAM( "Could not parse tool pose." );
-	}
+	GetParamRequired( _privHandle, "tool_pose", tool );
 	if( !SetTool( tool ) )
 	{
 		ROS_WARN( "Unable to set the tool." );
