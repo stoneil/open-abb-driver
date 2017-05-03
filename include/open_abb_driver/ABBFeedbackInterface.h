@@ -8,6 +8,7 @@
 #include "open_abb_driver/ABBKinematics.h"
 
 #include <memory>
+#include <ros/ros.h>
 
 namespace open_abb_driver
 {
@@ -16,6 +17,7 @@ struct JointFeedback
 {
 	std::string date;
 	std::string time;
+	ros::Time stamp;
 	std::array<double,6> joints;
 };
 

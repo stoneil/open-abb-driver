@@ -12,7 +12,8 @@ find_package( catkin 	REQUIRED
 						argus_utils )
 
 add_service_files(
-	FILES 			AddWaypoint.srv
+	FILES 			SetCartesianTrajectory.srv
+					AddWaypoint.srv
 					ClearWaypoints.srv
 					ExecuteWaypoints.srv
 					GetCartesian.srv

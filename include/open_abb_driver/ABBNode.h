@@ -4,10 +4,12 @@
 #include "open_abb_driver/TrajectoryGenerator.h"
 
 #include "argus_utils/geometry/PoseSE3.h"
+#include "argus_utils/synchronization/SynchronizationTypes.h"
 
 //ROS specific
 #include <ros/ros.h>
 
+#include <open_abb_driver/SetCartesianTrajectory.h>
 #include <open_abb_driver/AddWaypoint.h>
 #include <open_abb_driver/ClearWaypoints.h>
 #include <open_abb_driver/ExecuteWaypoints.h>
@@ -73,7 +75,56 @@ namespace open_abb_driver
 		ABBDriver( const ros::NodeHandle& nh, const ros::NodeHandle& ph );
 		~ABBDriver();
 		
+		// Direct function calls are synchronized
+		bool AddWaypoint( const JointAngles& angles, double duration );
+		bool ClearWaypoints();
+		// NOTE Make sure there are waypoints or else the arm errors!
+		bool ExecuteWaypoints();
+		bool GetNumWaypoints( int& num );
+		bool Ping();
+		bool SetCartesian( const argus::PoseSE3& pose );
+		bool SetCartesianLinear( const argus::PoseSE3& pose, double duration, 
+		                         unsigned int numWaypoints );
+		bool SetCartesianTrajectory( const CartesianTrajectory& traj );
+		bool GetCartesian( argus::PoseSE3& pose );
+
+		// NOTE: Joint methods compensate for IKFast joint 1 and 2 linkage
+		bool SetJoints( const JointAngles& angles );
+		bool GetJoints( JointAngles& angles );
+
+		bool SetTool( const argus::PoseSE3& pose );
+		bool SetWorkObject( const argus::PoseSE3& pose );
+		bool SetSpeed( double linear, double orientation );
+		bool SetZone( unsigned int zone );
+		bool SetSoftness( const std::array<double,6>& softness );
+		
+	private:
+		
+		typedef argus::RecursiveMutex Mutex;
+		typedef argus::RecursiveLock Lock;
+
+		mutable Mutex _armMutex; // Mutex protecting access to arm for atomic operations
+
+		ros::NodeHandle _nodeHandle;
+		ros::NodeHandle _privHandle;
+		
+		ros::Publisher _cartesianPub;
+		
+		ABBControlInterface::Ptr _controlInterface;
+		ABBFeedbackInterface::Ptr _feedbackInterface;
+		ABBKinematics::Ptr _ikSolver;
+		TrajectoryGenerator::Ptr _trajPlanner;
+		
+		// TODO Change to Limits struct to avoid first/second confusion
+		std::array< std::pair<double,double>, 6 > _jointLimits;
+
+		// TODO Move to helper file
+		static bool InterpolateLinearTrajectory( CartesianTrajectory& traj,
+		                                         const std::vector<unsigned int>& numPoints );
+
 		// Service Callbacks
+		bool SetCartesianTrajectoryCallback( SetCartesianTrajectory::Request& req,
+		                                     SetCartesianTrajectory::Response& res);
 		bool AddWaypointCallback( AddWaypoint::Request& req, AddWaypoint::Response& res );
 		bool ClearWaypointsCallback( ClearWaypoints::Request& req, ClearWaypoints::Response& res );
 		bool ExecuteWaypointsCallback( ExecuteWaypoints::Request& req, ExecuteWaypoints::Response& res );
@@ -91,42 +142,6 @@ namespace open_abb_driver
 		bool SetZoneCallback( SetZone::Request& req, SetZone::Response& res );
 		bool SetSoftnessCallback( SetSoftness::Request& req, SetSoftness::Response& res );
 		
-		bool AddWaypoint( const JointAngles& angles, double duration );
-		bool ClearWaypoints();
-		bool ExecuteWaypoints();
-		bool GetNumWaypoints( int& num );
-		bool Ping();
-		bool SetCartesian( const argus::PoseSE3& pose );
-		bool GetCartesian( argus::PoseSE3& pose );
-		bool SetJoints( const JointAngles& angles );
-		bool GetJoints( JointAngles& angles );
-		bool SetTool( const argus::PoseSE3& pose );
-		bool SetWorkObject( const argus::PoseSE3& pose );
-		bool SetSpeed( double linear, double orientation );
-		bool SetZone( unsigned int zone );
-		bool SetSoftness( const std::array<double,6>& softness );
-		
-	private:
-		
-		typedef boost::shared_mutex Mutex;
-		typedef boost::unique_lock< Mutex > WriteLock;
-		typedef boost::shared_lock< Mutex > ReadLock;
-		
-		Mutex _mutex;
-		
-		ros::NodeHandle _nodeHandle;
-		ros::NodeHandle _privHandle;
-		
-		ros::Publisher _cartesianPub;
-		
-		ABBControlInterface::Ptr _controlInterface;
-		ABBFeedbackInterface::Ptr _feedbackInterface;
-		ABBKinematics::Ptr _ikSolver;
-		TrajectoryGenerator::Ptr _trajPlanner;
-		
-		// TODO Change to Limits struct to avoid first/second confusion
-		std::array< std::pair<double,double>, 6 > _jointLimits;
-
 		// Initialize the robot
 		bool Initialize();
 		
@@ -137,6 +152,8 @@ namespace open_abb_driver
 		
 		tf::TransformBroadcaster _tfBroadcaster;
 		
+		// Service servers for all ROS services
+		ros::ServiceServer _setCartesianTrajectoryServer;
 		ros::ServiceServer _addWaypointServer;
 		ros::ServiceServer _clearWaypointsServer;
 		ros::ServiceServer _executeWaypointsServer;
@@ -153,12 +170,17 @@ namespace open_abb_driver
 		ros::ServiceServer _setZoneServer;
 		ros::ServiceServer _setSoftnessServer;
 		
-		// Robot State
+		boost::thread _feedbackWorker; // Spinner for feedback interface
+
+		// Local cached robot properties and synchronized getters/setters
+		argus::PoseSE3 GetToolTrans() const;
+		void SetToolTrans( const argus::PoseSE3& pose );
+		argus::PoseSE3 GetWorkTrans() const;
+		void SetWorkTrans( const argus::PoseSE3& pose );
+
+		mutable Mutex _cacheMutex; // Mutex protecting access to local cached properties
 		argus::PoseSE3 _currToolTrans;
-		argus::PoseSE3 _currWorkTrans;
-		
-		boost::thread _feedbackWorker;
-		
+		argus::PoseSE3 _currWorkTrans;	
 	};
 	
 }

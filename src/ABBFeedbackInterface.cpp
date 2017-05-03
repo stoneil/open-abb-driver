@@ -88,6 +88,8 @@ void ABBFeedbackInterface::Spin()
 			if( code == 1 )
 			{
 				JointFeedback jmsg;
+				// Best we can do, since arm doesn't return fine-grained timestamps
+				jmsg.stamp = ros::Time::now();
 				char date[2000];
 				char time[2000];
 				sscanf(partialBuffer,"%*d %s %s %*f %lf %lf %lf %lf %lf %lf",
@@ -99,7 +101,6 @@ void ABBFeedbackInterface::Spin()
 									&jmsg.joints[3],
 									&jmsg.joints[4],
 									&jmsg.joints[5] );
-				
 				// If we read in the correct number of parameters, save this message
 				for ( int i = 0; i < jmsg.joints.size(); i++) 
 				{
