@@ -11,8 +11,6 @@ find_package( catkin 	REQUIRED
 						tf
 						argus_utils )
 
-find_package(Eigen3 REQUIRED)
-
 add_service_files(
 	FILES 			AddWaypoint.srv
 					ClearWaypoints.srv
@@ -36,7 +34,6 @@ generate_messages( DEPENDENCIES geometry_msgs )
 
 catkin_package(
 	INCLUDE_DIRS	include
-					${EIGEN3_INCLUDE_DIR}
 	
 	LIBRARIES 		abb_comm
 					
@@ -49,7 +46,6 @@ catkin_package(
 )
 
 include_directories( include
-					 ${EIGEN3_INCLUDE_DIR}
 					 ${catkin_INCLUDE_DIRS} )
 
 add_library( abb_comm 
@@ -64,11 +60,9 @@ add_dependencies( abb_comm ${open_abb_driver_EXPORTED_TARGETS} )
 target_link_libraries( abb_comm	${catkin_LIBRARIES} )
 
 add_executable( abb_node nodes/ABBNode.cpp )
-add_dependencies( abb_node ${PROJECT_NAME}_gencfg )
 target_link_libraries( abb_node abb_comm ${catkin_LIBRARIES} )
 
 # add_executable( execute_csv apps/ExecuteCSV.cpp )
-# add_dependencies( execute_csv ${PROJECT_NAME}_gencfg )
 # target_link_libraries( execute_csv abb_comm ${catkin_LIBRARIES} )
 
 install( TARGETS abb_comm abb_node
