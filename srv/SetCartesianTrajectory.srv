@@ -1,0 +1,7 @@
+# Service to execute a 6-DoF timed trajectory
+
+geometry_msgs/Pose[] poses
+float64[] durations
+bool interpolate
+uint32[] num_waypoints
+---

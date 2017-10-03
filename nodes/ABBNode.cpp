@@ -12,7 +12,9 @@ ABBDriver::ABBDriver( const ros::NodeHandle& nh, const ros::NodeHandle& ph )
 : _nodeHandle( nh ), _privHandle( ph )
 {
 	Initialize();
-	
+	_setCartesianTrajectoryServer = _privHandle.advertiseService( "set_cartesian_trajectory", 
+		                                                          &ABBDriver::SetCartesianTrajectoryCallback,
+		                                                          this );
 	_addWaypointServer = _privHandle.advertiseService( "add_waypoint", 
 	                                                   &ABBDriver::AddWaypointCallback, 
 	                                                   this);
@@ -72,6 +74,8 @@ ABBDriver::~ABBDriver()
 
 bool ABBDriver::Initialize()
 {
+	Lock( _armMutex );
+
 	std::string robotIp;
 	int robotMotionPort;
 	int robotLoggerPort;
@@ -99,6 +103,8 @@ void ABBDriver::FeedbackSpin()
 {
 	while( ros::ok() )
 	{
+		// Feedback interface doesn't interact with anything else and thus
+		// does not need a lock
 		_feedbackInterface->Spin();
 		bool published = false;
 
@@ -107,13 +113,13 @@ void ABBDriver::FeedbackSpin()
 			JointFeedback fb = _feedbackInterface->GetFeedback();
 
 			// TODO Currently no way to synchronize clocks with ABB arm
-			ros::Time now = ros::Time::now();
+			ros::Time now = fb.stamp;
 			JointAngles angles = fb.joints;
 			angles[2] -= angles[1];
 			
 			// TODO Make this cleaner
 			PoseSE3 fwd = ABBKinematics::ComputeFK( angles );
-			fwd = _currWorkTrans.Inverse()*fwd*_currToolTrans;
+			fwd = GetWorkTrans().Inverse() * fwd * GetToolTrans();
 			
 			FixedVectorType<7> fwdv = fwd.ToVector();
 			tf::Vector3 translation( fwdv[0], fwdv[1], fwdv[2] );
@@ -133,15 +139,14 @@ void ABBDriver::FeedbackSpin()
 		{
 			ros::Time now = ros::Time::now();
 			
-			ReadLock lock( _mutex );
-			argus::FixedVectorType<7> toolVec = _currToolTrans.ToVector();
+			argus::FixedVectorType<7> toolVec = GetToolTrans().ToVector();
 			tf::Vector3 toolTranslation( toolVec[0], toolVec[1], toolVec[2] );
 			tf::Quaternion toolRot( toolVec[4], toolVec[5], toolVec[6], toolVec[3] );
 			tf::Transform toolTrans( toolRot, toolTranslation );
 			tf::StampedTransform toolMsg( toolTrans, now, "abb_end_effector", "abb_tool" );
 			_tfBroadcaster.sendTransform( toolMsg );
 			
-			argus::FixedVectorType<7> workVec = _currWorkTrans.ToVector();
+			argus::FixedVectorType<7> workVec = GetWorkTrans().ToVector();
 			tf::Vector3 workTranslation( workVec[0], workVec[1], workVec[2] );
 			tf::Quaternion workRot( workVec[4], workVec[5], workVec[6], workVec[3] );
 			tf::Transform workTrans( workRot, workTranslation );
@@ -153,6 +158,8 @@ void ABBDriver::FeedbackSpin()
 
 bool ABBDriver::ConfigureRobot()
 {
+	Lock lock( _armMutex );
+
 	//WorkObject
 	PoseSE3 workObj;
 	GetParamRequired( _privHandle, "work_object_pose", workObj );
@@ -260,6 +267,7 @@ bool ABBDriver::AddWaypointCallback( AddWaypoint::Request& req, AddWaypoint::Res
 
 bool ABBDriver::AddWaypoint( const JointAngles& angles, double duration )
 {
+	Lock lock( _armMutex );	
 	JointAngles a( angles );
 	a[2] += a[1];
 	return _controlInterface->AddWaypoint( a, duration );
@@ -272,6 +280,7 @@ bool ABBDriver::ClearWaypointsCallback( ClearWaypoints::Request& req, ClearWaypo
 
 bool ABBDriver::ClearWaypoints()
 {
+	Lock lock( _armMutex );	
 	return _controlInterface->ClearWaypoints();
 }
 
@@ -282,6 +291,7 @@ bool ABBDriver::ExecuteWaypointsCallback( ExecuteWaypoints::Request& req, Execut
 
 bool ABBDriver::ExecuteWaypoints()
 {
+	Lock lock( _armMutex );	
 	return _controlInterface->ExecuteWaypoints();
 }
 
@@ -292,6 +302,7 @@ bool ABBDriver::GetNumWaypointsCallback( GetNumWaypoints::Request& req, GetNumWa
 
 bool ABBDriver::GetNumWaypoints( int& num )
 {
+	Lock lock( _armMutex );	
 	return _controlInterface->GetNumWaypoints( num );
 }
 
@@ -302,21 +313,24 @@ bool ABBDriver::PingCallback( Ping::Request& req, Ping::Response& res )
 
 bool ABBDriver::Ping()
 {
+	Lock lock( _armMutex );	
 	return _controlInterface->Ping();
 }
 
 bool ABBDriver::SetCartesianCallback( SetCartesian::Request& req, SetCartesian::Response& res )
 {
 	PoseSE3 tform( req.x, req.y, req.z, req.qw, req.qx, req.qy, req.qz );
-	
 	return SetCartesian( tform );
 }
 
-bool ABBDriver::SetCartesianLinearCallback( SetCartesianLinear::Request& req,
-                                            SetCartesianLinear::Response& res )
+bool ABBDriver::SetCartesianTrajectoryCallback( SetCartesianTrajectory::Request& req,
+		                                        SetCartesianTrajectory::Response& res)
 {
-	PoseSE3 tform = MsgToPose( req.pose );
-	PoseSE3 targetPose = _currWorkTrans * tform * _currToolTrans.Inverse();
+	if( req.poses.size() != req.durations.size())
+	{
+		ROS_ERROR_STREAM("Cartesian trajectory poses and durations not same length");
+		return false;
+	}
 
 	PoseSE3 currentPose;
 	if( !GetCartesian( currentPose ) )
@@ -324,32 +338,108 @@ bool ABBDriver::SetCartesianLinearCallback( SetCartesianLinear::Request& req,
 		ROS_ERROR_STREAM( "Could not get current end effector pose." );
 		return false;
 	}
-	currentPose = _currWorkTrans * currentPose * _currToolTrans.Inverse();
+	currentPose = GetWorkTrans() * currentPose * GetToolTrans().Inverse();
+
+	CartesianTrajectory traj;
+	CartesianWaypoint wp;
+	wp.pose = currentPose;
+	wp.time = ros::Duration( 0 );
+	traj.push_back( wp );
+
+	for( unsigned int i = 0; i < req.poses.size(); ++i )
+	{
+		PoseSE3 tform = MsgToPose( req.poses[i] );
+		wp.pose = GetWorkTrans() * tform * GetToolTrans().Inverse();
+		wp.time = ros::Duration( req.durations[i] );
+		traj.push_back( wp );
+	}
+
+	if( req.interpolate )
+	{
+		if( !InterpolateLinearTrajectory(traj, req.num_waypoints) )
+		{
+			ROS_ERROR_STREAM( "Could not interpolate trajectory." );
+			return false;
+		}
+	}
+
+	return SetCartesianTrajectory(traj);
+}
+
+bool ABBDriver::SetCartesianLinearCallback( SetCartesianLinear::Request& req,
+                                            SetCartesianLinear::Response& res )
+{
+	PoseSE3 pose = MsgToPose( req.pose );
+	return SetCartesianLinear( pose, req.duration, req.num_waypoints );
+}
+
+bool ABBDriver::SetCartesianLinear( const PoseSE3& pose,
+                                    double duration, 
+									unsigned int numWaypoints )
+{
+	PoseSE3 targetPose = GetWorkTrans() * pose * GetToolTrans().Inverse();
+	PoseSE3 currentPose;
+	if( !GetCartesian( currentPose ) )
+	{
+		ROS_ERROR_STREAM( "Could not get current end effector pose." );
+		return false;
+	}
+	currentPose = GetWorkTrans() * currentPose * GetToolTrans().Inverse();
 
 	// PoseSE3 movement = targetPose.Inverse() * currentPose;
 	PoseSE3 movement = currentPose.Inverse() * targetPose;
 	PoseSE3::TangentVector bodyVel = PoseSE3::Log( movement );
-	PoseSE3 delta = PoseSE3::Exp( bodyVel / ( req.num_waypoints ) );
-	double dt = req.duration / req.num_waypoints;
-
-	// ROS_INFO_STREAM( "Current pose: " << currentPose );
-	// ROS_INFO_STREAM( "Target pose: " << targetPose );
-	// ROS_INFO_STREAM( "Body velocity: " << bodyVel.transpose() );
+	PoseSE3 delta = PoseSE3::Exp( bodyVel / numWaypoints );
+	double dt = duration / numWaypoints;
 
 	CartesianTrajectory traj;
-	traj.reserve( req.num_waypoints );
 	PoseSE3 acc = currentPose;
-	double tAcc = 0;
-	for( unsigned int i = 0; i < req.num_waypoints; i++ )
+	for( unsigned int i = 0; i < numWaypoints; ++i )
 	{
 		acc = acc * delta;
-		tAcc = tAcc + dt;
 		CartesianWaypoint wp;
 		wp.pose = acc;
-		wp.time = ros::Duration( tAcc );
-		// ROS_INFO_STREAM( "Waypoint pose: " << wp.pose );
+		wp.time = ros::Duration( dt );
 		traj.push_back( wp );
 	}
+
+	return SetCartesianTrajectory(traj);
+}
+
+bool ABBDriver::InterpolateLinearTrajectory( CartesianTrajectory& traj,
+		                                     const std::vector<unsigned int>& numPoints )
+{
+	if( traj.size() != numPoints.size() + 1 ) { return false; }
+	if( traj.size() < 2 ) { return false; }
+
+	CartesianTrajectory out;
+	for( unsigned int i = 0; i < traj.size() - 1; ++i )
+	{
+		PoseSE3 currentPose = traj[i].pose;
+		PoseSE3 targetPose = traj[i+1].pose;
+
+		PoseSE3 movement = currentPose.Inverse() * targetPose;
+		PoseSE3::TangentVector bodyVel = PoseSE3::Log( movement );
+		PoseSE3 delta = PoseSE3::Exp( bodyVel / numPoints[i] );
+		double dt = traj[i+1].time.toSec() / numPoints[i];
+
+		PoseSE3 acc = currentPose;
+		for( unsigned int j = 0; j < numPoints[i]; ++j )
+		{
+			acc = acc * delta;
+			CartesianWaypoint wp;
+			wp.pose = acc;
+			wp.time = ros::Duration( dt );
+			out.push_back( wp );
+		}
+	}
+	traj = out;
+	return true;
+}
+
+bool ABBDriver::SetCartesianTrajectory( const CartesianTrajectory& traj )
+{
+	Lock lock( _armMutex );
 
 	JointAngles currentJoints;
 	if( !GetJoints( currentJoints ) )
@@ -367,34 +457,36 @@ bool ABBDriver::SetCartesianLinearCallback( SetCartesianLinear::Request& req,
 		ROS_ERROR_STREAM( "Could not find trajectory: " << e.what() );
 		return false;
 	}
-	if( jTraj.size() != req.num_waypoints + 1 )
-	{
-		ROS_WARN_STREAM( "Planned trajectory has " << jTraj.size() - 1 << 
-			             " waypoints instead of requested " << req.num_waypoints );
-		return false;
-	}
 
 	if( !_controlInterface->ClearWaypoints() )
 	{
 		ROS_ERROR_STREAM( "Could not clear waypoint buffer." );
 		return false;
 	}
-	// Skip the first waypoint since we are "already there"
-	for( unsigned int i = 1; i < jTraj.size(); ++i )
+
+	for( unsigned int i = 0; i < jTraj.size(); ++i )
 	{
-		// ROS_INFO_STREAM( "Adding waypoint: " << jTraj[i].joints << " dt: " << dt );
-		if( !AddWaypoint( jTraj[i].joints, dt ) )
+		// ROS_INFO_STREAM( "Adding: " << jTraj[i].joints << ", " << jTraj[i].time );
+		if( !AddWaypoint( jTraj[i].joints, jTraj[i].time.toSec() ) )
 		{
 			ROS_ERROR_STREAM( "Could not add waypoint to buffer." );
 			return false;
 		}
 	}
+
+	int num;
+	GetNumWaypoints( num );
+	// ROS_INFO_STREAM( "Has " << num << " waypoints" );
+	if( num == 0 ) { return true; }
+
 	return _controlInterface->ExecuteWaypoints();
 }
 
 bool ABBDriver::SetCartesian( const PoseSE3& pose )
 {
-	PoseSE3 eff = _currWorkTrans*pose*_currToolTrans.Inverse();
+	Lock lock( _armMutex );	
+	
+	PoseSE3 eff = GetWorkTrans()*pose*GetToolTrans().Inverse();
 	
 	std::vector<JointAngles> ikSols;
 	if( !_ikSolver->ComputeIK( eff, ikSols ) || ikSols.size() == 0 )
@@ -431,11 +523,12 @@ bool ABBDriver::GetCartesianCallback( GetCartesian::Request& req, GetCartesian::
 
 bool ABBDriver::GetCartesian( PoseSE3& pose )
 {
+	Lock lock( _armMutex );		
 	JointAngles angles;
 	
 	if( !GetJoints( angles ) ) { return false; }
 	PoseSE3 fwd = ABBKinematics::ComputeFK( angles );
-	pose = _currWorkTrans.Inverse()*fwd*_currToolTrans;
+	pose = GetWorkTrans().Inverse()*fwd*GetToolTrans();
 	return true;
 }
 
@@ -449,8 +542,9 @@ bool ABBDriver::SetJointsCallback( SetJoints::Request& req, SetJoints::Response&
 
 bool ABBDriver::SetJoints( const JointAngles& angles )
 {
+	Lock lock( _armMutex );		
 	JointAngles a( angles );
-	a[2] += a[1];
+	a[2] += a[1]; // Compensate for combined joints differing from ikfast model
 	
 	for( unsigned int i = 0; i < 6; i++ )
 	{
@@ -477,8 +571,9 @@ bool ABBDriver::GetJointsCallback( GetJoints::Request& req, GetJoints::Response&
 
 bool ABBDriver::GetJoints( JointAngles& angles )
 {
+	Lock lock( _armMutex );	
 	if( !_controlInterface->GetJoints( angles ) ) { return false; }
-	angles[2] -= angles[1];
+	angles[2] -= angles[1]; // Compensate for combined joints differing from ikfast model
 	return true;
 }
 
@@ -490,9 +585,9 @@ bool ABBDriver::SetToolCallback( SetTool::Request& req, SetTool::Response& res )
 
 bool ABBDriver::SetTool( const PoseSE3& pose )
 {
-	WriteLock lock( _mutex );
-	_currToolTrans = pose;
-	argus::FixedVectorType<7> vec = _currToolTrans.ToVector();
+	Lock lock( _armMutex );
+	SetToolTrans( pose );
+	argus::FixedVectorType<7> vec = GetToolTrans().ToVector();
 	return _controlInterface->SetTool( vec[0], vec[1], vec[2], vec[3], vec[4], vec[5], vec[6] );
 }
 
@@ -504,9 +599,9 @@ bool ABBDriver::SetWorkObjectCallback( SetWorkObject::Request& req, SetWorkObjec
 
 bool ABBDriver::SetWorkObject( const PoseSE3& pose )
 {
-	WriteLock lock( _mutex );
-	_currWorkTrans = pose;
-	argus::FixedVectorType<7> vec = _currWorkTrans.ToVector();
+	Lock lock( _armMutex );
+	SetWorkTrans( pose );
+	argus::FixedVectorType<7> vec = GetWorkTrans().ToVector();
 	return _controlInterface->SetWorkObject( vec[0], vec[1], vec[2], vec[3], vec[4], vec[5], vec[6] );
 }
 
@@ -517,6 +612,8 @@ bool ABBDriver::SetSpeedCallback( SetSpeed::Request& req, SetSpeed::Response& re
 
 bool ABBDriver::SetSpeed( double linear, double orientation )
 {
+	Lock lock( _armMutex );
+	
 	return _controlInterface->SetSpeed( linear, orientation );
 }
 
@@ -527,6 +624,8 @@ bool ABBDriver::SetZoneCallback( SetZone::Request& req, SetZone::Response& res )
 
 bool ABBDriver::SetZone( unsigned int zone )
 {
+	Lock lock( _armMutex );
+	
 	return _controlInterface->SetZone( zone );
 }
 
@@ -539,10 +638,36 @@ bool ABBDriver::SetSoftnessCallback( SetSoftness::Request& req, SetSoftness::Res
 
 bool ABBDriver::SetSoftness( const std::array<double,6>& softness )
 {
+	Lock lock( _armMutex );
+	
 	return _controlInterface->SetSoftness( softness );
 }
 
+PoseSE3 ABBDriver::GetWorkTrans() const
+{
+	Lock lock( _cacheMutex );
+	return _currWorkTrans;
 }
+
+void ABBDriver::SetWorkTrans( const PoseSE3& pose )
+{
+	Lock lock( _cacheMutex );
+	_currWorkTrans = pose;
+}
+
+PoseSE3 ABBDriver::GetToolTrans() const
+{
+	Lock lock( _cacheMutex );
+	return _currToolTrans;
+}
+
+void ABBDriver::SetToolTrans( const PoseSE3& pose )
+{
+	Lock lock( _cacheMutex );
+	_currToolTrans = pose;
+}
+
+} // end namespace open_abb_driver
 
 int main(int argc, char** argv)
 {
