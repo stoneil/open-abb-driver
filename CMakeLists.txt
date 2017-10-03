@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(open_abb_driver)
 
-set( CMAKE_CXX_FLAGS "-g -Wall -std=c++11" )
+set( CMAKE_CXX_FLAGS "-g -Wall -std=c++0x" )
 set( CMAKE_BUILD_TYPE Release )
 
 find_package( catkin 	REQUIRED
