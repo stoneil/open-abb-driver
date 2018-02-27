@@ -47,5 +47,7 @@ If you are interested in real-time robotics, you should check this project: [htt
 
 ### Reference
 Node.js module for abb-communication by [@garciadelcastillo](https://github.com/garciadelcastillo).
-Forked from [https://github.com/Humhu/open-abb-driver](https://github.com/Humhu/open-abb-driver)
-This doc is adapted from [https://github.com/robotics/open_abb/wiki/Python-Control](https://github.com/robotics/open_abb/wiki/Python-Control)
+
+Forked from [https://github.com/Humhu/open-abb-driver](https://github.com/Humhu/open-abb-driver).
+
+This doc is adapted from [https://github.com/robotics/open_abb/wiki/Python-Control](https://github.com/robotics/open_abb/wiki/Python-Control).
