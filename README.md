@@ -1,10 +1,9 @@
 # open-abb-driver
-### Control ABB robots remotely with ROS, Python, or C++
-
-
+### Control ABB robots remotely with ROS, Python, Node.js or C++
 
 ## What is it?
-open-abb-driver consists of two main parts. The first is a program which is written in the ABB robot control language, RAPID, which allows remote clients to send requests for actions (such as joint moves, cartesian moves, speed changes, etc.). The second is a series of libraries to interact with the robot from remote computers, using several different control schemes. You can use the ROS driver, which allows control using ROS services and publishers. You can also include the Python or C++ libraries to communicate with the robot directly (both located in abb_node/packages/abb_comm), and bypass ROS completely. 
+open-abb-driver consists of two main parts. The first is a program which is written in the ABB robot control language, RAPID, which allows remote clients to send requests for actions (such as joint moves, cartesian moves, speed changes, etc.). The second is a series of libraries to interact with the robot from remote computers, using several different control schemes. You can use the ROS driver, which allows control using ROS services and publishers. You can also include the Python, Node.js or C++ libraries to communicate with the robot directly (both located in abb_node/packages/abb_comm), and bypass ROS completely. 
+
 
 ## Requirements
 * ABB IRC5 controller
@@ -25,8 +24,9 @@ open-abb-driver consists of two main parts. The first is a program which is writ
 ### Computer Setup
 * Verify that your computer is on the same subnet as the robot.
     * Try pinging the robot (default IP is 192.168.125.1). 
-* Before trying ROS, it's pretty easy to check functionality using the [simple python interface.](https://github.com/robotics/open-abb-driver/wiki/Python-Control)
-    * Note that you must either copy abb_node/packages/abb_comm/abb.py to your local directory or somewhere included in your PYTHONPATH environment. 
+    * Before trying ROS, it's pretty easy to check functionality using the [simple python interface](https://github.com/robotics/open-abb-driver/wiki/Python-Control) (note that you must either copy abb_node/packages/abb_comm/abb.py to your local directory or somewhere included in your PYTHONPATH environment). 
+    * You can also try the [simple Node.js interface](https://github.com/garciadelcastillo/open-abb-driver/tree/fuerte-devel/node.js). Please note that, due to the async nature of Node.js, `get`-type requests are non-blocking and will return true, with the result printing to the console on response. Sync behavior is WIP.
+
 * To set up the ROS node (Fuerte only at the moment), copy abb_node to somewhere in your $ROS_PACKAGE_PATH.
     * If you did that correctly, try:
 
